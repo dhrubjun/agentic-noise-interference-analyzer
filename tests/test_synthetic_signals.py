@@ -279,3 +279,19 @@ def test_create_signal_with_nan():
     assert np.isnan(corrupted_samples[100])
 
     assert np.sum(np.isnan(corrupted_samples)) == 1
+
+def test_create_signal_with_inf():
+    _, samples = generate_sine(
+        frequency_hz=1000.0,
+        amplitude=1.0,
+        sample_rate_hz=10000.0,
+        duration_seconds=1.0,
+    )
+
+    corrupted_samples = samples.copy()
+    corrupted_samples[100] = np.inf
+
+    assert len(corrupted_samples) == 10000
+    assert np.isinf(corrupted_samples[100])
+
+    assert np.sum(np.isinf(corrupted_samples)) == 1
