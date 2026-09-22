@@ -3,6 +3,7 @@ import numpy as np
 from noise_analyzer.synthetic.signals import (
     generate_constant,
     generate_dc_offset_sine,
+    generate_intermittent_interference,
     generate_noisy_sine,
     generate_sine,
     generate_two_tone,
@@ -198,3 +199,45 @@ def test_generate_dc_offset_sine():
 
     # For this coherent reference case, the sine averages to zero.
     assert np.isclose(np.mean(samples), 2.0, atol=1e-12)
+
+def test_generate_intermittent_interference():
+    time, samples = generate_intermittent_interference(
+        base_frequency_hz=1000.0,
+        base_amplitude=1.0,
+        interference_frequency_hz=1800.0,
+        interference_amplitude=0.5,
+        interference_start_seconds=4.0,
+        interference_end_seconds=6.0,
+        sample_rate_hz=10000.0,
+        duration_seconds=10.0,
+    )
+
+    assert len(samples) == 100000
+    assert len(time) == 100000
+
+    base_signal = np.sin(
+        2.0 * np.pi * 1000.0 * time
+    )
+
+    interference = 0.5 * np.sin(
+        2.0 * np.pi * 1800.0 * time
+    )
+
+    before_mask = time < 4.0
+    during_mask = (time >= 4.0) & (time < 6.0)
+    after_mask = time >= 6.0
+
+    assert np.allclose(
+        samples[before_mask],
+        base_signal[before_mask],
+    )
+
+    assert np.allclose(
+        samples[during_mask],
+        base_signal[during_mask] + interference[during_mask],
+    )
+
+    assert np.allclose(
+        samples[after_mask],
+        base_signal[after_mask],
+    )

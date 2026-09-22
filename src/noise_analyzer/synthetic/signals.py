@@ -159,3 +159,59 @@ def generate_dc_offset_sine(
     )
 
     return time, samples
+
+def generate_intermittent_interference(
+    base_frequency_hz: float,
+    base_amplitude: float,
+    interference_frequency_hz: float,
+    interference_amplitude: float,
+    interference_start_seconds: float,
+    interference_end_seconds: float,
+    sample_rate_hz: float,
+    duration_seconds: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Generate a base sinusoid with an intermittent interfering sinusoid."""
+
+    if sample_rate_hz <= 0:
+        raise ValueError("sample_rate_hz must be greater than zero.")
+
+    if duration_seconds <= 0:
+        raise ValueError("duration_seconds must be greater than zero.")
+
+    if base_frequency_hz < 0 or interference_frequency_hz < 0:
+        raise ValueError("Frequencies must be non-negative.")
+
+    if interference_start_seconds < 0:
+        raise ValueError("interference_start_seconds must be non-negative.")
+
+    if interference_end_seconds <= interference_start_seconds:
+        raise ValueError(
+            "interference_end_seconds must be greater than interference_start_seconds."
+        )
+
+    if interference_end_seconds > duration_seconds:
+        raise ValueError(
+            "interference_end_seconds must not exceed duration_seconds."
+        )
+
+    number_of_samples = int(round(sample_rate_hz * duration_seconds))
+
+    time = np.arange(number_of_samples, dtype=float) / sample_rate_hz
+
+    base_signal = base_amplitude * np.sin(
+        2.0 * np.pi * base_frequency_hz * time
+    )
+
+    interference = interference_amplitude * np.sin(
+        2.0 * np.pi * interference_frequency_hz * time
+    )
+
+    active_mask = (
+        (time >= interference_start_seconds)
+        & (time < interference_end_seconds)
+    )
+
+    samples = base_signal.copy()
+    samples[active_mask] += interference[active_mask]
+
+    return time, samples
