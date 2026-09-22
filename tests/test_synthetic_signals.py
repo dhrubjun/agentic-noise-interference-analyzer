@@ -326,3 +326,17 @@ def test_generate_sine_rejects_negative_sample_rate():
             sample_rate_hz=-10000.0,
             duration_seconds=1.0,
         )
+
+def test_create_too_short_signal_reference_case():
+    time, samples = generate_sine(
+        frequency_hz=100.0,
+        amplitude=1.0,
+        sample_rate_hz=1000.0,
+        duration_seconds=0.002,
+    )
+
+    assert len(samples) == 2
+    assert len(time) == 2
+
+    assert np.isclose(time[0], 0.0)
+    assert np.isclose(time[1], 0.001)
