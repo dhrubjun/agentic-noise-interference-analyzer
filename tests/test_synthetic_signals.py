@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from noise_analyzer.synthetic.signals import (
     generate_constant,
@@ -301,3 +302,27 @@ def test_create_empty_signal_reference_case():
 
     assert samples.size == 0
     assert samples.dtype == float
+
+def test_generate_sine_rejects_zero_sample_rate():
+    with pytest.raises(
+        ValueError,
+        match="sample_rate_hz must be greater than zero",
+    ):
+        generate_sine(
+            frequency_hz=1000.0,
+            amplitude=1.0,
+            sample_rate_hz=0.0,
+            duration_seconds=1.0,
+        )
+
+def test_generate_sine_rejects_negative_sample_rate():
+    with pytest.raises(
+        ValueError,
+        match="sample_rate_hz must be greater than zero",
+    ):
+        generate_sine(
+            frequency_hz=1000.0,
+            amplitude=1.0,
+            sample_rate_hz=-10000.0,
+            duration_seconds=1.0,
+        )
