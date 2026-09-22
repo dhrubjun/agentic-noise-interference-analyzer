@@ -295,3 +295,9 @@ def test_create_signal_with_inf():
     assert np.isinf(corrupted_samples[100])
 
     assert np.sum(np.isinf(corrupted_samples)) == 1
+
+def test_create_empty_signal_reference_case():
+    samples = np.array([], dtype=float)
+
+    assert samples.size == 0
+    assert samples.dtype == float
