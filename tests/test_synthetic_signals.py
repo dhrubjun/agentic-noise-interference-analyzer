@@ -1,7 +1,10 @@
 import numpy as np
 
-from noise_analyzer.synthetic.signals import generate_sine
-from noise_analyzer.synthetic.signals import generate_constant
+from noise_analyzer.synthetic.signals import (
+    generate_constant,
+    generate_sine,
+    generate_two_tone,
+)
 
 
 def test_generate_reference_sine():
@@ -47,3 +50,23 @@ def test_generate_constant_signal():
     assert np.isclose(time[1] - time[0], 1.0 / 10000.0)
 
     assert np.all(samples == 3.0)
+
+def test_generate_two_tone_signal():
+    time, samples = generate_two_tone(
+        frequency_1_hz=1000.0,
+        amplitude_1=1.0,
+        frequency_2_hz=1800.0,
+        amplitude_2=0.5,
+        sample_rate_hz=10000.0,
+        duration_seconds=5.0,
+    )
+
+    assert len(samples) == 50000
+    assert len(time) == 50000
+
+    expected_samples = (
+        1.0 * np.sin(2.0 * np.pi * 1000.0 * time)
+        + 0.5 * np.sin(2.0 * np.pi * 1800.0 * time)
+    )
+
+    assert np.allclose(samples, expected_samples)

@@ -53,3 +53,38 @@ def generate_constant(
     )
 
     return time, samples
+
+def generate_two_tone(
+    frequency_1_hz: float,
+    amplitude_1: float,
+    frequency_2_hz: float,
+    amplitude_2: float,
+    sample_rate_hz: float,
+    duration_seconds: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Generate the sum of two uniformly sampled real-valued sinusoids."""
+
+    if sample_rate_hz <= 0:
+        raise ValueError("sample_rate_hz must be greater than zero.")
+
+    if duration_seconds <= 0:
+        raise ValueError("duration_seconds must be greater than zero.")
+
+    if frequency_1_hz < 0 or frequency_2_hz < 0:
+        raise ValueError("Frequencies must be non-negative.")
+
+    number_of_samples = int(round(sample_rate_hz * duration_seconds))
+
+    time = np.arange(number_of_samples, dtype=float) / sample_rate_hz
+
+    tone_1 = amplitude_1 * np.sin(
+        2.0 * np.pi * frequency_1_hz * time
+    )
+
+    tone_2 = amplitude_2 * np.sin(
+        2.0 * np.pi * frequency_2_hz * time
+    )
+
+    samples = tone_1 + tone_2
+
+    return time, samples
