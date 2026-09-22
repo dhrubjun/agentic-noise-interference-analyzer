@@ -1,6 +1,7 @@
 import numpy as np
 
 from noise_analyzer.synthetic.signals import generate_sine
+from noise_analyzer.synthetic.signals import generate_constant
 
 
 def test_generate_reference_sine():
@@ -31,3 +32,18 @@ def test_generate_reference_sine():
         expected_rms,
         atol=1e-12,
     )
+
+def test_generate_constant_signal():
+    time, samples = generate_constant(
+        value=3.0,
+        sample_rate_hz=10000.0,
+        duration_seconds=5.0,
+    )
+
+    assert len(samples) == 50000
+    assert len(time) == 50000
+
+    assert np.isclose(time[0], 0.0)
+    assert np.isclose(time[1] - time[0], 1.0 / 10000.0)
+
+    assert np.all(samples == 3.0)

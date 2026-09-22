@@ -28,3 +28,28 @@ def generate_sine(
     )
 
     return time, samples
+
+def generate_constant(
+    value: float,
+    sample_rate_hz: float,
+    duration_seconds: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Generate a uniformly sampled constant-valued signal."""
+
+    if sample_rate_hz <= 0:
+        raise ValueError("sample_rate_hz must be greater than zero.")
+
+    if duration_seconds <= 0:
+        raise ValueError("duration_seconds must be greater than zero.")
+
+    number_of_samples = int(round(sample_rate_hz * duration_seconds))
+
+    time = np.arange(number_of_samples, dtype=float) / sample_rate_hz
+
+    samples = np.full(
+        number_of_samples,
+        fill_value=value,
+        dtype=float,
+    )
+
+    return time, samples
