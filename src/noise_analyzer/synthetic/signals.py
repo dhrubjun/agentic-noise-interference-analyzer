@@ -130,3 +130,32 @@ def generate_noisy_sine(
     samples = clean_signal + noise
 
     return time, samples
+
+def generate_dc_offset_sine(
+    dc_offset: float,
+    frequency_hz: float,
+    amplitude: float,
+    sample_rate_hz: float,
+    duration_seconds: float,
+    phase_rad: float = 0.0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Generate a sinusoid with a constant DC offset."""
+
+    if sample_rate_hz <= 0:
+        raise ValueError("sample_rate_hz must be greater than zero.")
+
+    if duration_seconds <= 0:
+        raise ValueError("duration_seconds must be greater than zero.")
+
+    if frequency_hz < 0:
+        raise ValueError("frequency_hz must be non-negative.")
+
+    number_of_samples = int(round(sample_rate_hz * duration_seconds))
+
+    time = np.arange(number_of_samples, dtype=float) / sample_rate_hz
+
+    samples = dc_offset + amplitude * np.sin(
+        2.0 * np.pi * frequency_hz * time + phase_rad
+    )
+
+    return time, samples

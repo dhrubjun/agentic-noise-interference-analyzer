@@ -2,6 +2,7 @@ import numpy as np
 
 from noise_analyzer.synthetic.signals import (
     generate_constant,
+    generate_dc_offset_sine,
     generate_noisy_sine,
     generate_sine,
     generate_two_tone,
@@ -175,3 +176,25 @@ def test_increased_noise_has_larger_variation():
         0.5,
         atol=0.02,
     )
+
+def test_generate_dc_offset_sine():
+    time, samples = generate_dc_offset_sine(
+        dc_offset=2.0,
+        frequency_hz=1000.0,
+        amplitude=1.0,
+        sample_rate_hz=10000.0,
+        duration_seconds=5.0,
+    )
+
+    assert len(samples) == 50000
+    assert len(time) == 50000
+
+    expected_samples = (
+        2.0
+        + np.sin(2.0 * np.pi * 1000.0 * time)
+    )
+
+    assert np.allclose(samples, expected_samples)
+
+    # For this coherent reference case, the sine averages to zero.
+    assert np.isclose(np.mean(samples), 2.0, atol=1e-12)
