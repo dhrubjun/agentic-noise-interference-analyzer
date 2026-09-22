@@ -340,3 +340,31 @@ def test_create_too_short_signal_reference_case():
 
     assert np.isclose(time[0], 0.0)
     assert np.isclose(time[1], 0.001)
+
+def test_create_nonuniform_timestamp_reference_case():
+    sample_rate_hz = 1000.0
+    duration_seconds = 1.0
+
+    time, samples = generate_sine(
+        frequency_hz=100.0,
+        amplitude=1.0,
+        sample_rate_hz=sample_rate_hz,
+        duration_seconds=duration_seconds,
+    )
+
+    nonuniform_time = time.copy()
+
+    # Introduce one deliberate timing irregularity.
+    nonuniform_time[500] += 0.0002
+
+    time_steps = np.diff(nonuniform_time)
+
+    assert len(samples) == 1000
+    assert len(nonuniform_time) == 1000
+
+    assert not np.allclose(
+        time_steps,
+        1.0 / sample_rate_hz,
+        rtol=0.0,
+        atol=1e-12,
+    )
