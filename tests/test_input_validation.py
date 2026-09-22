@@ -1,7 +1,10 @@
 import numpy as np
 import pytest
 
-from noise_analyzer.io.validation import validate_finite_samples
+from noise_analyzer.io.validation import (
+    validate_finite_samples,
+    validate_nonempty_signal,
+)
 from noise_analyzer.models.signal import SignalRecord
 
 
@@ -36,3 +39,23 @@ def test_validate_finite_samples_rejects_inf():
         match="non-finite sample values",
     ):
         validate_finite_samples(record)
+
+def test_validate_nonempty_signal_rejects_empty_signal():
+    record = SignalRecord(
+        samples=np.array([], dtype=float),
+        sample_rate_hz=1000.0,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Signal contains no samples",
+    ):
+        validate_nonempty_signal(record)
+
+def test_validate_nonempty_signal_accepts_signal_with_samples():
+    record = SignalRecord(
+        samples=np.array([1.0]),
+        sample_rate_hz=1000.0,
+    )
+
+    validate_nonempty_signal(record)
