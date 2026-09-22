@@ -241,3 +241,25 @@ def test_generate_intermittent_interference():
         samples[after_mask],
         base_signal[after_mask],
     )
+
+def test_generate_non_bin_centered_sine():
+    frequency_hz = 1000.37
+    amplitude = 1.0
+    sample_rate_hz = 10000.0
+    duration_seconds = 5.0
+
+    time, samples = generate_sine(
+        frequency_hz=frequency_hz,
+        amplitude=amplitude,
+        sample_rate_hz=sample_rate_hz,
+        duration_seconds=duration_seconds,
+    )
+
+    assert len(samples) == 50000
+    assert len(time) == 50000
+
+    expected_samples = amplitude * np.sin(
+        2.0 * np.pi * frequency_hz * time
+    )
+
+    assert np.allclose(samples, expected_samples)
