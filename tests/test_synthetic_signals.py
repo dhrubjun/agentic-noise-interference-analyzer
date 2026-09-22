@@ -135,3 +135,43 @@ def test_generate_noisy_sine_noise_level_is_reasonable():
     measured_noise_std = np.std(noise)
 
     assert np.isclose(measured_noise_std, 0.1, atol=0.01)
+
+def test_increased_noise_has_larger_variation():
+    time_low, samples_low = generate_noisy_sine(
+        frequency_hz=1000.0,
+        amplitude=1.0,
+        noise_std=0.1,
+        sample_rate_hz=10000.0,
+        duration_seconds=10.0,
+        seed=42,
+    )
+
+    time_high, samples_high = generate_noisy_sine(
+        frequency_hz=1000.0,
+        amplitude=1.0,
+        noise_std=0.5,
+        sample_rate_hz=10000.0,
+        duration_seconds=10.0,
+        seed=42,
+    )
+
+    clean_signal = np.sin(2.0 * np.pi * 1000.0 * time_low)
+
+    noise_low = samples_low - clean_signal
+    noise_high = samples_high - clean_signal
+
+    assert np.allclose(time_low, time_high)
+
+    assert np.std(noise_high) > np.std(noise_low)
+
+    assert np.isclose(
+        np.std(noise_low),
+        0.1,
+        atol=0.01,
+    )
+
+    assert np.isclose(
+        np.std(noise_high),
+        0.5,
+        atol=0.02,
+    )
