@@ -16,3 +16,11 @@ def validate_nonempty_signal(record: SignalRecord) -> None:
 
     if record.number_of_samples == 0:
         raise ValueError("Signal contains no samples.")
+
+def is_constant_signal(record: SignalRecord) -> bool:
+    """Return True when all signal samples have the same value."""
+
+    if record.number_of_samples == 0:
+        return False
+
+    return bool(np.all(record.samples == record.samples[0]))

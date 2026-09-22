@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from noise_analyzer.io.validation import (
+    is_constant_signal,
     validate_finite_samples,
     validate_nonempty_signal,
 )
@@ -59,3 +60,27 @@ def test_validate_nonempty_signal_accepts_signal_with_samples():
     )
 
     validate_nonempty_signal(record)
+
+def test_is_constant_signal_detects_constant_signal():
+    record = SignalRecord(
+        samples=np.array([3.0, 3.0, 3.0, 3.0]),
+        sample_rate_hz=1000.0,
+    )
+
+    assert is_constant_signal(record) is True
+
+def test_is_constant_signal_rejects_nonconstant_signal():
+    record = SignalRecord(
+        samples=np.array([1.0, 2.0, 1.0, 2.0]),
+        sample_rate_hz=1000.0,
+    )
+
+    assert is_constant_signal(record) is False
+
+def test_is_constant_signal_returns_false_for_empty_signal():
+    record = SignalRecord(
+        samples=np.array([], dtype=float),
+        sample_rate_hz=1000.0,
+    )
+
+    assert is_constant_signal(record) is False
