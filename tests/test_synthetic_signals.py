@@ -263,3 +263,19 @@ def test_generate_non_bin_centered_sine():
     )
 
     assert np.allclose(samples, expected_samples)
+
+def test_create_signal_with_nan():
+    _, samples = generate_sine(
+        frequency_hz=1000.0,
+        amplitude=1.0,
+        sample_rate_hz=10000.0,
+        duration_seconds=1.0,
+    )
+
+    corrupted_samples = samples.copy()
+    corrupted_samples[100] = np.nan
+
+    assert len(corrupted_samples) == 10000
+    assert np.isnan(corrupted_samples[100])
+
+    assert np.sum(np.isnan(corrupted_samples)) == 1
