@@ -368,3 +368,25 @@ def test_create_nonuniform_timestamp_reference_case():
         rtol=0.0,
         atol=1e-12,
     )
+
+def test_fixed_seed_produces_identical_noisy_signal():
+    time_1, samples_1 = generate_noisy_sine(
+        frequency_hz=1000.0,
+        amplitude=1.0,
+        noise_std=0.1,
+        sample_rate_hz=10000.0,
+        duration_seconds=2.0,
+        seed=42,
+    )
+
+    time_2, samples_2 = generate_noisy_sine(
+        frequency_hz=1000.0,
+        amplitude=1.0,
+        noise_std=0.1,
+        sample_rate_hz=10000.0,
+        duration_seconds=2.0,
+        seed=42,
+    )
+
+    assert np.array_equal(time_1, time_2)
+    assert np.array_equal(samples_1, samples_2)
