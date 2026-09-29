@@ -120,3 +120,123 @@ def test_amplitude_spectrum_rejects_single_sample():
         match="At least two samples",
     ):
         calculate_amplitude_spectrum(record)
+
+def test_hann_window_preserves_bin_centered_tone_amplitude():
+    _, samples = generate_sine(
+        frequency_hz=1000.0,
+        amplitude=2.0,
+        sample_rate_hz=10000.0,
+        duration_seconds=5.0,
+    )
+
+    record = SignalRecord(
+        samples=samples,
+        sample_rate_hz=10000.0,
+    )
+
+    result = calculate_amplitude_spectrum(
+        record,
+        window="hann",
+    )
+
+    peak_index = np.argmax(result.amplitudes)
+
+    assert np.isclose(
+        result.frequencies_hz[peak_index],
+        1000.0,
+        atol=result.frequency_resolution_hz,
+    )
+
+    assert np.isclose(
+        result.amplitudes[peak_index],
+        2.0,
+        rtol=1e-4,
+    )
+
+    assert result.window == "hann"
+
+    assert np.isclose(
+        result.coherent_gain,
+        0.5,
+        rtol=1e-4,
+    )
+
+def test_hann_window_reduces_far_spectral_leakage():
+    _, samples = generate_sine(
+        frequency_hz=1000.37,
+        amplitude=1.0,
+        sample_rate_hz=10000.0,
+        duration_seconds=5.0,
+    )
+
+    record = SignalRecord(
+        samples=samples,
+        sample_rate_hz=10000.0,
+    )
+
+    no_window = calculate_amplitude_spectrum(
+        record,
+        window=None,
+    )
+
+    hann = calculate_amplitude_spectrum(
+        record,
+        window="hann",
+    )
+
+    far_frequency_hz = 990.0
+
+    far_index = np.argmin(
+        np.abs(
+            no_window.frequencies_hz
+            - far_frequency_hz
+        )
+    )
+
+    assert (
+        hann.amplitudes[far_index]
+        < no_window.amplitudes[far_index]
+    )
+
+def test_amplitude_spectrum_rejects_unsupported_window():
+    _, samples = generate_sine(
+        frequency_hz=1000.0,
+        amplitude=1.0,
+        sample_rate_hz=10000.0,
+        duration_seconds=1.0,
+    )
+
+    record = SignalRecord(
+        samples=samples,
+        sample_rate_hz=10000.0,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Unsupported window",
+    ):
+        calculate_amplitude_spectrum(
+            record,
+            window="blackman",
+        )
+
+def test_amplitude_spectrum_reports_no_window():
+    _, samples = generate_sine(
+        frequency_hz=1000.0,
+        amplitude=1.0,
+        sample_rate_hz=10000.0,
+        duration_seconds=1.0,
+    )
+
+    record = SignalRecord(
+        samples=samples,
+        sample_rate_hz=10000.0,
+    )
+
+    result = calculate_amplitude_spectrum(
+        record,
+        window=None,
+    )
+
+    assert result.window is None
+    assert np.isclose(result.coherent_gain, 1.0)

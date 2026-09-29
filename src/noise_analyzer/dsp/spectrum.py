@@ -18,42 +18,65 @@ class SpectrumResult:
     frequency_resolution_hz: float
     number_of_samples: int
     sample_rate_hz: float
+    window: str | None
+    coherent_gain: float
 
 
 def calculate_amplitude_spectrum(
     record: SignalRecord,
+    window: str | None = None,
 ) -> SpectrumResult:
-    """Calculate the one-sided amplitude spectrum of a real-valued signal."""
+    """Calculate a one-sided amplitude spectrum."""
 
     validate_nonempty_signal(record)
     validate_finite_samples(record)
 
-    samples = record.samples
     number_of_samples = record.number_of_samples
-    sample_rate_hz = record.sample_rate_hz
 
     if number_of_samples < 2:
         raise ValueError(
             "At least two samples are required for spectral analysis."
         )
 
-    fft_values = np.fft.rfft(samples)
+    sample_rate_hz = record.sample_rate_hz
+    samples = record.samples
+
+    if window is None:
+        window_values = np.ones(number_of_samples, dtype=float)
+        coherent_gain = 1.0
+
+    elif window == "hann":
+        window_values = np.hanning(number_of_samples)
+        coherent_gain = float(np.mean(window_values))
+
+    else:
+        raise ValueError(
+            "Unsupported window. Use None or 'hann'."
+        )
+
+    windowed_samples = samples * window_values
+
+    fft_values = np.fft.rfft(windowed_samples)
 
     frequencies_hz = np.fft.rfftfreq(
         number_of_samples,
         d=1.0 / sample_rate_hz,
     )
 
-    amplitudes = np.abs(fft_values) / number_of_samples
+    amplitudes = (
+        np.abs(fft_values)
+        / number_of_samples
+        / coherent_gain
+    )
 
     if number_of_samples % 2 == 0:
-        # Do not double DC or the Nyquist bin.
         amplitudes[1:-1] *= 2.0
     else:
-        # Odd-length signals do not contain a Nyquist bin.
         amplitudes[1:] *= 2.0
 
-    frequency_resolution_hz = sample_rate_hz / number_of_samples
+    frequency_resolution_hz = (
+        sample_rate_hz / number_of_samples
+    )
 
     return SpectrumResult(
         frequencies_hz=frequencies_hz,
@@ -61,4 +84,6 @@ def calculate_amplitude_spectrum(
         frequency_resolution_hz=frequency_resolution_hz,
         number_of_samples=number_of_samples,
         sample_rate_hz=sample_rate_hz,
+        window=window,
+        coherent_gain=coherent_gain,
     )
