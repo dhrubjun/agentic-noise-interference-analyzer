@@ -18,6 +18,11 @@ from noise_analyzer.dsp.spectrogram import (
     SpectrogramResult,
     calculate_spectrogram,
 )
+from noise_analyzer.dsp.peaks import (
+    PeakDetectionResult,
+    SpectralPeak,
+    detect_spectral_peaks,
+)
 __all__ = [
     "SpectrumResult",
     "TimeDomainStatistics",
@@ -29,4 +34,7 @@ __all__ = [
     "calculate_asd",
     "SpectrogramResult",
     "calculate_spectrogram",
+    "PeakDetectionResult",
+    "SpectralPeak",
+    "detect_spectral_peaks",
 ]
