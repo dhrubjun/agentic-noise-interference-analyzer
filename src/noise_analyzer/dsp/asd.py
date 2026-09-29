@@ -22,20 +22,10 @@ class ASDResult:
     frequency_resolution_hz: float
 
 
-def calculate_asd(
-    record: SignalRecord,
-    nperseg: int,
-    noverlap: int | None = None,
-    window: str = "hann",
+def calculate_asd_from_psd(
+    psd_result: PSDResult,
 ) -> ASDResult:
-    """Calculate amplitude spectral density from Welch PSD."""
-
-    psd_result: PSDResult = calculate_welch_psd(
-        record=record,
-        nperseg=nperseg,
-        noverlap=noverlap,
-        window=window,
-    )
+    """Calculate ASD directly from an existing PSD result."""
 
     asd = np.sqrt(psd_result.psd)
 
@@ -48,3 +38,21 @@ def calculate_asd(
         noverlap=psd_result.noverlap,
         frequency_resolution_hz=psd_result.frequency_resolution_hz,
     )
+
+
+def calculate_asd(
+    record: SignalRecord,
+    nperseg: int,
+    noverlap: int | None = None,
+    window: str = "hann",
+) -> ASDResult:
+    """Calculate ASD by first calculating Welch PSD."""
+
+    psd_result = calculate_welch_psd(
+        record=record,
+        nperseg=nperseg,
+        noverlap=noverlap,
+        window=window,
+    )
+
+    return calculate_asd_from_psd(psd_result)

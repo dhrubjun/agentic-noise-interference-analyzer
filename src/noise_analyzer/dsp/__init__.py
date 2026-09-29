@@ -13,6 +13,7 @@ from noise_analyzer.dsp.psd import (
 from noise_analyzer.dsp.asd import (
     ASDResult,
     calculate_asd,
+    calculate_asd_from_psd,
 )
 from noise_analyzer.dsp.spectrogram import (
     SpectrogramResult,
@@ -37,4 +38,5 @@ __all__ = [
     "PeakDetectionResult",
     "SpectralPeak",
     "detect_spectral_peaks",
+    "calculate_asd_from_psd",
 ]
