@@ -13,6 +13,7 @@ def load_signal_csv(
     time_column: str = "time",
     channel_name: str = "signal",
     units: str = "unknown",
+    has_header: bool = True,
 ) -> SignalRecord:
     """Load a single real-valued signal from a CSV file."""
 
@@ -21,11 +22,19 @@ def load_signal_csv(
     if not path.exists():
         raise FileNotFoundError(f"CSV file not found: {path}")
 
-    dataframe = pd.read_csv(path)
+    if has_header:
+        dataframe = pd.read_csv(path)
 
-    if signal_column not in dataframe.columns:
-        raise ValueError(
-            f"Signal column '{signal_column}' was not found in the CSV file."
+        if signal_column not in dataframe.columns:
+            raise ValueError(
+                f"Signal column '{signal_column}' was not found in the CSV file."
+            )
+
+    else:
+        dataframe = pd.read_csv(
+            path,
+            header=None,
+            names=[signal_column],
         )
 
     try:

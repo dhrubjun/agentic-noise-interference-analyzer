@@ -184,3 +184,30 @@ def test_load_time_signal_csv_rejects_non_increasing_time(tmp_path):
         match="strictly increasing",
     ):
         load_signal_csv(file_path=file_path)
+
+def test_load_headerless_single_column_csv(tmp_path):
+    csv_path = tmp_path / "headerless.csv"
+
+    csv_path.write_text(
+        "0.1\n"
+        "0.2\n"
+        "0.3\n"
+        "0.4\n",
+        encoding="utf-8",
+    )
+
+    record = load_signal_csv(
+        file_path=csv_path,
+        sample_rate_hz=1000.0,
+        has_header=False,
+    )
+
+    assert record.number_of_samples == 4
+    assert np.allclose(
+        record.samples,
+        [0.1, 0.2, 0.3, 0.4],
+    )
+    assert np.isclose(
+        record.sample_rate_hz,
+        1000.0,
+    )

@@ -102,3 +102,4 @@ test_data/external/
 
 # Local application state
 .cache/
+test_data/real/
