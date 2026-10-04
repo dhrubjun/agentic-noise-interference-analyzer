@@ -3,7 +3,7 @@
 ## Agentic Noise & Interference Analyzer
 
 **Version:** V0.1  
-**Status:** Approved baseline
+**Status:** V0.1 synthetic validation complete
 
 ---
 
@@ -562,6 +562,38 @@ FAIL
 This document should therefore evolve from a validation plan into a record of the validated DSP foundation.
 
 ---
+
+# 11. V0.1 Validation Status
+
+## V0.1 Single-Channel Analyzer
+
+| ID | Test Case | Expected Behavior | Status |
+|---|---|---|---|
+| TEST-SIG-001 | Pure sine, 1 kHz, A=2 | Correct RMS and dominant spectral peak | PASS |
+| TEST-SIG-002 | Constant signal, value=3 | Mean=3, RMS=3, std=0, constant detected | PASS |
+| TEST-SIG-003 | Two-tone, 1 kHz + 1.8 kHz | Both tones detected at correct amplitudes | PASS |
+| TEST-SIG-004 | Sine + Gaussian noise, σ=0.1 | 1 kHz tone remains detectable | PASS |
+| TEST-SIG-005 | Sine + Gaussian noise, σ=0.5 | 1 kHz tone remains detectable under higher noise | PASS |
+| TEST-SIG-006 | DC offset + sine | Mean correctly reflects DC offset | PASS |
+| TEST-SIG-007 | Intermittent 1.8 kHz interference | Spectrogram localizes interference to 4–6 s | PASS |
+| TEST-SIG-008 | Non-bin-centered 1000.37 Hz sine | Dominant spectral bin lies within FFT resolution | PASS |
+| TEST-SIG-009 | NaN samples | Analysis rejected | PASS |
+| TEST-SIG-010 | Inf samples | Analysis rejected | PASS |
+| TEST-SIG-011 | Empty signal | Analysis rejected | PASS |
+| TEST-SIG-012 | Invalid sample rate | SignalRecord rejected | PASS |
+| TEST-SIG-013 | Too-short signal | Analysis rejected | PASS |
+| TEST-SIG-014 | Nonuniform timestamps | CSV loader rejected input | PASS |
+| TEST-SIG-015 | Fixed random seed | Synthetic noisy signal reproducible | PASS |
+
+
+## Notes
+
+- Numerical tolerances are tied to the properties of the algorithms being tested.
+- FFT frequency accuracy is evaluated relative to the frequency resolution Δf = Fs / N.
+- Welch PSD was independently validated by comparing integrated PSD power with time-domain signal power.
+- ASD was validated using ASD² = PSD.
+- Spectrogram behavior was validated using a known intermittent interference interval.
+- Nonuniform timestamp validation is performed at the CSV input layer because timestamps are not retained in SignalRecord after successful loading.
 
 ## Final Validation Principle
 
