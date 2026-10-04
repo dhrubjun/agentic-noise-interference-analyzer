@@ -268,26 +268,32 @@ def test_save_analysis_plots_creates_expected_files(tmp_path):
         config=config,
     )
 
-    config_path, results_path = save_analysis_json(
+    (
+        waveform_path,
+        spectrum_path,
+        psd_path,
+        asd_path,
+        spectrogram_path,
+    ) = save_analysis_plots(
         record=record,
         result=result,
         output_dir=tmp_path,
     )
 
-    waveform_path, spectrum_path = save_analysis_plots(
-        record=record,
-        result=result,
-        output_dir=tmp_path,
-    )
+    expected_paths = [
+        waveform_path,
+        spectrum_path,
+        psd_path,
+        asd_path,
+        spectrogram_path,
+    ]
 
-    assert config_path.exists()
-    assert results_path.exists()
-
-    assert waveform_path.exists()
-    assert spectrum_path.exists()
-
-    assert waveform_path.stat().st_size > 0
-    assert spectrum_path.stat().st_size > 0
+    for path in expected_paths:
+        assert path.exists()
+        assert path.stat().st_size > 0
 
     assert waveform_path.name == "waveform.png"
     assert spectrum_path.name == "spectrum.png"
+    assert psd_path.name == "psd.png"
+    assert asd_path.name == "asd.png"
+    assert spectrogram_path.name == "spectrogram.png"

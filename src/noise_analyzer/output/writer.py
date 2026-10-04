@@ -112,8 +112,8 @@ def save_analysis_plots(
     record: SignalRecord,
     result: SingleChannelAnalysisResult,
     output_dir: str | Path,
-) -> tuple[Path, Path]:
-    """Save waveform and amplitude spectrum plots."""
+) -> tuple[Path, Path, Path, Path, Path]:
+    """Save waveform, spectrum, PSD, ASD, and spectrogram plots."""
 
     output_path = Path(output_dir)
     output_path.mkdir(
@@ -123,6 +123,9 @@ def save_analysis_plots(
 
     waveform_path = output_path / "waveform.png"
     spectrum_path = output_path / "spectrum.png"
+    psd_path = output_path / "psd.png"
+    asd_path = output_path / "asd.png"
+    spectrogram_path = output_path / "spectrogram.png"
 
     # Waveform
     time_seconds = (
@@ -154,7 +157,6 @@ def save_analysis_plots(
         waveform_path,
         dpi=150,
     )
-
     plt.close(fig)
 
     # Amplitude spectrum
@@ -185,7 +187,117 @@ def save_analysis_plots(
         spectrum_path,
         dpi=150,
     )
-
     plt.close(fig)
 
-    return waveform_path, spectrum_path
+    # PSD
+    fig, ax = plt.subplots()
+
+    ax.semilogy(
+        result.psd.frequencies_hz,
+        result.psd.psd,
+    )
+
+    ax.set_xlabel("Frequency [Hz]")
+
+    if record.units == "unknown":
+        ax.set_ylabel("PSD [units²/Hz]")
+    else:
+        ax.set_ylabel(
+            f"PSD [{record.units}²/Hz]"
+        )
+
+    ax.set_title(
+        f"{record.channel_name} - Power Spectral Density"
+    )
+
+    ax.grid(True)
+
+    fig.tight_layout()
+    fig.savefig(
+        psd_path,
+        dpi=150,
+    )
+    plt.close(fig)
+
+    # ASD
+    fig, ax = plt.subplots()
+
+    ax.semilogy(
+        result.asd.frequencies_hz,
+        result.asd.asd,
+    )
+
+    ax.set_xlabel("Frequency [Hz]")
+
+    if record.units == "unknown":
+        ax.set_ylabel("ASD [units/√Hz]")
+    else:
+        ax.set_ylabel(
+            f"ASD [{record.units}/√Hz]"
+        )
+
+    ax.set_title(
+        f"{record.channel_name} - Amplitude Spectral Density"
+    )
+
+    ax.grid(True)
+
+    fig.tight_layout()
+    fig.savefig(
+        asd_path,
+        dpi=150,
+    )
+    plt.close(fig)
+
+    # Spectrogram
+    spectrogram_db = 10.0 * np.log10(
+        np.maximum(
+            result.spectrogram.power_spectral_density,
+            1e-20,
+        )
+    )
+
+    fig, ax = plt.subplots()
+
+    image = ax.pcolormesh(
+        result.spectrogram.times_seconds,
+        result.spectrogram.frequencies_hz,
+        spectrogram_db,
+        shading="auto",
+    )
+
+    ax.set_xlabel("Time [s]")
+    ax.set_ylabel("Frequency [Hz]")
+
+    ax.set_title(
+        f"{record.channel_name} - Spectrogram"
+    )
+
+    colorbar = fig.colorbar(
+        image,
+        ax=ax,
+    )
+
+    if record.units == "unknown":
+        colorbar.set_label(
+            "PSD [dB re 1 arbitrary-unit²/Hz]"
+        )
+    else:
+        colorbar.set_label(
+            f"PSD [dB re 1 {record.units}²/Hz]"
+        )
+
+    fig.tight_layout()
+    fig.savefig(
+        spectrogram_path,
+        dpi=150,
+    )
+    plt.close(fig)
+
+    return (
+        waveform_path,
+        spectrum_path,
+        psd_path,
+        asd_path,
+        spectrogram_path,
+    )
