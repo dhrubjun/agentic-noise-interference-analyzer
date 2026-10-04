@@ -1,5 +1,8 @@
 from noise_analyzer.models.signal import SignalRecord
-from noise_analyzer.output.writer import save_analysis_json
+from noise_analyzer.output.writer import (
+    save_analysis_json,
+    save_analysis_plots,
+)
 from noise_analyzer.pipeline.single_channel import (
     SingleChannelAnalysisConfig,
     analyze_single_channel,
@@ -45,6 +48,16 @@ config_path, results_path = save_analysis_json(
     output_dir="outputs/test_run",
 )
 
-print("Saved:")
+waveform_path, spectrum_path = save_analysis_plots(
+    record=record,
+    result=result,
+    output_dir="outputs/test_run",
+)
+
+print("Saved JSON:")
 print(config_path)
 print(results_path)
+
+print("Saved plots:")
+print(waveform_path)
+print(spectrum_path)

@@ -1,5 +1,7 @@
 import json
 from pathlib import Path
+import matplotlib.pyplot as plt
+import numpy as np
 
 from noise_analyzer.models.signal import SignalRecord
 from noise_analyzer.pipeline.single_channel import (
@@ -105,3 +107,85 @@ def save_analysis_json(
         )
 
     return config_path, results_path
+
+def save_analysis_plots(
+    record: SignalRecord,
+    result: SingleChannelAnalysisResult,
+    output_dir: str | Path,
+) -> tuple[Path, Path]:
+    """Save waveform and amplitude spectrum plots."""
+
+    output_path = Path(output_dir)
+    output_path.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    waveform_path = output_path / "waveform.png"
+    spectrum_path = output_path / "spectrum.png"
+
+    # Waveform
+    time_seconds = (
+        np.arange(record.number_of_samples)
+        / record.sample_rate_hz
+    )
+
+    fig, ax = plt.subplots()
+
+    ax.plot(
+        time_seconds,
+        record.samples,
+    )
+
+    ax.set_xlabel("Time [s]")
+
+    if record.units == "unknown":
+        ax.set_ylabel("Amplitude [arbitrary units]")
+    else:
+        ax.set_ylabel(
+            f"Amplitude [{record.units}]"
+        )
+
+    ax.set_title(record.channel_name)
+    ax.grid(True)
+
+    fig.tight_layout()
+    fig.savefig(
+        waveform_path,
+        dpi=150,
+    )
+
+    plt.close(fig)
+
+    # Amplitude spectrum
+    fig, ax = plt.subplots()
+
+    ax.plot(
+        result.spectrum.frequencies_hz,
+        result.spectrum.amplitudes,
+    )
+
+    ax.set_xlabel("Frequency [Hz]")
+
+    if record.units == "unknown":
+        ax.set_ylabel("Amplitude [arbitrary units]")
+    else:
+        ax.set_ylabel(
+            f"Amplitude [{record.units}]"
+        )
+
+    ax.set_title(
+        f"{record.channel_name} - Amplitude Spectrum"
+    )
+
+    ax.grid(True)
+
+    fig.tight_layout()
+    fig.savefig(
+        spectrum_path,
+        dpi=150,
+    )
+
+    plt.close(fig)
+
+    return waveform_path, spectrum_path
