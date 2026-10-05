@@ -35,6 +35,53 @@ def save_analysis_json(
         "spectrogram_window": result.config.spectrogram_window,
         "peak_min_prominence": result.config.peak_min_prominence,
         "peak_min_distance_hz": result.config.peak_min_distance_hz,
+
+        "band_power_ranges_hz": [
+            list(frequency_range)
+            for frequency_range
+            in result.config.band_power_ranges_hz
+        ],
+
+        "noise_floor_lower_frequency_hz": (
+            result.config.noise_floor_lower_frequency_hz
+        ),
+        "noise_floor_upper_frequency_hz": (
+            result.config.noise_floor_upper_frequency_hz
+        ),
+
+        "narrowband_neighbourhood_width_hz": (
+            result.config.narrowband_neighbourhood_width_hz
+        ),
+        "narrowband_excluded_peak_width_hz": (
+            result.config.narrowband_excluded_peak_width_hz
+        ),
+
+        "harmonic_tolerance_hz": (
+            result.config.harmonic_tolerance_hz
+        ),
+        "harmonic_max_order": (
+            result.config.harmonic_max_order
+        ),
+        "harmonic_minimum_matches": (
+            result.config.harmonic_minimum_matches
+        ),
+
+        "characterization_broadband_flatness_threshold": (
+            result.config
+            .characterization_broadband_flatness_threshold
+        ),
+        "characterization_tonal_flatness_threshold": (
+            result.config
+            .characterization_tonal_flatness_threshold
+        ),
+        "characterization_strong_line_threshold_db": (
+            result.config
+            .characterization_strong_line_threshold_db
+        ),
+        "characterization_harmonic_minimum_matches": (
+            result.config
+            .characterization_harmonic_minimum_matches
+        ),
     }
 
     results_data = {
@@ -84,6 +131,221 @@ def save_analysis_json(
             }
             for peak in result.peaks.peaks
         ],
+
+        "band_powers": [
+            {
+                "lower_frequency_hz": band.lower_frequency_hz,
+                "upper_frequency_hz": band.upper_frequency_hz,
+                "band_power": band.band_power,
+                "fraction_of_total_power": (
+                    band.fraction_of_total_power
+                ),
+            }
+            for band in result.band_powers
+        ],
+
+        "noise_floor": (
+            None
+            if result.noise_floor is None
+            else {
+                "noise_floor_db": (
+                    result.noise_floor.noise_floor_db
+                ),
+                "method": (
+                    result.noise_floor.method
+                ),
+                "lower_frequency_hz": (
+                    result.noise_floor.lower_frequency_hz
+                ),
+                "upper_frequency_hz": (
+                    result.noise_floor.upper_frequency_hz
+                ),
+                "number_of_bins": (
+                    result.noise_floor.number_of_bins
+                ),
+            }
+        ),
+
+        "spectral_features": {
+            "flatness": (
+                None
+                if result.spectral_flatness is None
+                else result.spectral_flatness.spectral_flatness
+            ),
+
+            "centroid_hz": (
+                None
+                if result.spectral_centroid is None
+                else (
+                    result.spectral_centroid
+                    .spectral_centroid_hz
+                )
+            ),
+
+            "spread_hz": (
+                None
+                if result.spectral_spread is None
+                else (
+                    result.spectral_spread
+                    .spectral_spread_hz
+                )
+            ),
+
+            "psd_percentiles_db": (
+                None
+                if result.psd_percentiles is None
+                else {
+                    "p10": (
+                        result.psd_percentiles
+                        .percentile_10_db
+                    ),
+                    "p25": (
+                        result.psd_percentiles
+                        .percentile_25_db
+                    ),
+                    "p50": (
+                        result.psd_percentiles
+                        .percentile_50_db
+                    ),
+                    "p75": (
+                        result.psd_percentiles
+                        .percentile_75_db
+                    ),
+                    "p90": (
+                        result.psd_percentiles
+                        .percentile_90_db
+                    ),
+                }
+            ),
+        },
+
+        "narrowband_lines": (
+            None
+            if result.narrowband_lines is None
+            else [
+                {
+                    "frequency_hz": line.frequency_hz,
+                    "peak_level_db": line.peak_level_db,
+                    "local_noise_floor_db": (
+                        line.local_noise_floor_db
+                    ),
+                    "line_to_floor_db": (
+                        line.line_to_floor_db
+                    ),
+                    "neighbourhood_lower_hz": (
+                        line.neighbourhood_lower_hz
+                    ),
+                    "neighbourhood_upper_hz": (
+                        line.neighbourhood_upper_hz
+                    ),
+                    "excluded_peak_width_hz": (
+                        line.excluded_peak_width_hz
+                    ),
+                    "number_of_background_bins": (
+                        line.number_of_background_bins
+                    ),
+                }
+                for line in result.narrowband_lines.lines
+            ]
+        ),
+
+        "harmonic_analysis": (
+            None
+            if result.harmonic_family is None
+            else {
+                "candidate_fundamentals_hz": list(
+                    result.harmonic_family
+                    .candidate_fundamentals_hz
+                ),
+                "best_family": (
+                    None
+                    if (
+                        result.harmonic_family
+                        .best_family is None
+                    )
+                    else {
+                        "candidate_fundamental_hz": (
+                            result.harmonic_family
+                            .best_family
+                            .candidate_fundamental_hz
+                        ),
+                        "tolerance_hz": (
+                            result.harmonic_family
+                            .best_family
+                            .tolerance_hz
+                        ),
+                        "matches": [
+                            {
+                                "harmonic_order": (
+                                    match.harmonic_order
+                                ),
+                                "expected_frequency_hz": (
+                                    match.expected_frequency_hz
+                                ),
+                                "detected_frequency_hz": (
+                                    match.detected_frequency_hz
+                                ),
+                                "frequency_error_hz": (
+                                    match.frequency_error_hz
+                                ),
+                            }
+                            for match
+                            in (
+                                result.harmonic_family
+                                .best_family
+                                .matches
+                            )
+                        ],
+                    }
+                ),
+            }
+        ),
+
+        "characterization": (
+            None
+            if result.characterization is None
+            else {
+                "label": (
+                    result.characterization.label
+                ),
+                "spectral_flatness": (
+                    result.characterization
+                    .spectral_flatness
+                ),
+                "strong_line_count": (
+                    result.characterization
+                    .strong_line_count
+                ),
+                "strongest_line_to_floor_db": (
+                    result.characterization
+                    .strongest_line_to_floor_db
+                ),
+                "harmonic_match_count": (
+                    result.characterization
+                    .harmonic_match_count
+                ),
+                "thresholds": {
+                    "broadband_flatness": (
+                        result.characterization
+                        .broadband_flatness_threshold
+                    ),
+                    "tonal_flatness": (
+                        result.characterization
+                        .tonal_flatness_threshold
+                    ),
+                    "strong_line_db": (
+                        result.characterization
+                        .strong_line_threshold_db
+                    ),
+                    "harmonic_minimum_matches": (
+                        result.characterization
+                        .harmonic_minimum_matches
+                    ),
+                },
+            }
+        ),
+
+
     }
 
     with config_path.open(
