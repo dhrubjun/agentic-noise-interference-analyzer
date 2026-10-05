@@ -120,6 +120,8 @@ def test_single_channel_pipeline_flags_constant_signal():
         0.0,
     )
 
+    assert result.noise_floor is None
+
 def test_single_channel_pipeline_calculates_band_power():
     _, samples = generate_two_tone(
         frequency_1_hz=300.0,
@@ -168,3 +170,54 @@ def test_single_channel_pipeline_calculates_band_power():
         2.0,
         rtol=0.02,
     )
+
+def test_single_channel_pipeline_includes_noise_floor():
+    rng = np.random.default_rng(42)
+
+    samples = rng.normal(
+        loc=0.0,
+        scale=1.0,
+        size=100000,
+    )
+
+    record = SignalRecord(
+        samples=samples,
+        sample_rate_hz=10000.0,
+    )
+
+    config = SingleChannelAnalysisConfig(
+        spectrum_window="hann",
+        psd_nperseg=10000,
+        psd_noverlap=5000,
+        psd_window="hann",
+        spectrogram_nperseg=1000,
+        spectrogram_noverlap=500,
+        spectrogram_window="hann",
+        peak_min_prominence=0.1,
+        band_power_ranges_hz=(),
+        noise_floor_lower_frequency_hz=100.0,
+        noise_floor_upper_frequency_hz=4000.0,
+    )
+
+    result = analyze_single_channel(
+        record,
+        config,
+    )
+
+    assert result.noise_floor.method == "median_psd_db"
+
+    assert np.isfinite(
+        result.noise_floor.noise_floor_db
+    )
+
+    assert (
+        result.noise_floor.lower_frequency_hz
+        == 100.0
+    )
+
+    assert (
+        result.noise_floor.upper_frequency_hz
+        == 4000.0
+    )
+
+    assert result.noise_floor.number_of_bins > 0

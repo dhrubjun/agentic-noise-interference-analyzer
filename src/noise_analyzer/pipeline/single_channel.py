@@ -35,6 +35,10 @@ from noise_analyzer.dsp.band_power import (
     calculate_band_power,
 )
 
+from noise_analyzer.dsp.noise_floor import (
+    NoiseFloorResult,
+    estimate_noise_floor,
+)
 
 @dataclass(frozen=True)
 class SingleChannelAnalysisConfig:
@@ -54,6 +58,9 @@ class SingleChannelAnalysisConfig:
     peak_min_distance_hz: float | None = None
 
     band_power_ranges_hz: tuple[tuple[float, float], ...] = ()
+
+    noise_floor_lower_frequency_hz: float | None = None
+    noise_floor_upper_frequency_hz: float | None = None
 
 
 @dataclass(frozen=True)
@@ -76,6 +83,8 @@ class SingleChannelAnalysisResult:
     config: SingleChannelAnalysisConfig
 
     band_powers: tuple[BandPowerResult, ...]
+
+    noise_floor: NoiseFloorResult | None
 
 
 def analyze_single_channel(
@@ -102,6 +111,15 @@ def analyze_single_channel(
         noverlap=config.psd_noverlap,
         window=config.psd_window,
     )
+
+    if constant_signal or psd.integrated_power <= 0:
+        noise_floor = None
+    else:
+        noise_floor = estimate_noise_floor(
+            psd,
+            lower_frequency_hz=config.noise_floor_lower_frequency_hz,
+            upper_frequency_hz=config.noise_floor_upper_frequency_hz,
+        )
 
     band_powers = tuple(
         calculate_band_power(
@@ -142,4 +160,5 @@ def analyze_single_channel(
         peaks=peaks,
         band_powers=band_powers,
         config=config,
+        noise_floor=noise_floor,
     )
