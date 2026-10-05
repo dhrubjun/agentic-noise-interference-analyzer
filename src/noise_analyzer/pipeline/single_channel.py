@@ -61,6 +61,11 @@ from noise_analyzer.dsp.harmonics import (
     find_best_harmonic_family,
 )
 
+from noise_analyzer.dsp.characterization import (
+    CharacterizationResult,
+    characterize_spectral_behavior,
+)
+
 @dataclass(frozen=True)
 class SingleChannelAnalysisConfig:
     """Configuration for the single-channel analysis pipeline."""
@@ -89,6 +94,11 @@ class SingleChannelAnalysisConfig:
     harmonic_tolerance_hz: float = 1.0
     harmonic_max_order: int = 10
     harmonic_minimum_matches: int = 3
+
+    characterization_broadband_flatness_threshold: float = 0.80
+    characterization_tonal_flatness_threshold: float = 0.10
+    characterization_strong_line_threshold_db: float = 10.0
+    characterization_harmonic_minimum_matches: int = 3
 
 
 @dataclass(frozen=True)
@@ -122,6 +132,8 @@ class SingleChannelAnalysisResult:
     narrowband_lines: NarrowbandCharacterizationResult | None
 
     harmonic_family: AutomaticHarmonicSearchResult | None
+
+    characterization: CharacterizationResult | None
 
 
 def analyze_single_channel(
@@ -221,6 +233,31 @@ def analyze_single_channel(
             ),
         )
 
+    if (
+        constant_signal
+        or spectral_flatness is None
+        or narrowband_lines is None
+    ):
+        characterization = None
+    else:
+        characterization = characterize_spectral_behavior(
+            spectral_flatness,
+            narrowband_lines,
+            harmonic_family,
+            broadband_flatness_threshold=(
+                config.characterization_broadband_flatness_threshold
+            ),
+            tonal_flatness_threshold=(
+                config.characterization_tonal_flatness_threshold
+            ),
+            strong_line_threshold_db=(
+                config.characterization_strong_line_threshold_db
+            ),
+            harmonic_minimum_matches=(
+                config.characterization_harmonic_minimum_matches
+            ),
+        )
+
     return SingleChannelAnalysisResult(
         number_of_samples=record.number_of_samples,
         sample_rate_hz=record.sample_rate_hz,
@@ -242,4 +279,5 @@ def analyze_single_channel(
         psd_percentiles=psd_percentiles,
         narrowband_lines=narrowband_lines,
         harmonic_family=harmonic_family,
+        characterization=characterization,
     )
