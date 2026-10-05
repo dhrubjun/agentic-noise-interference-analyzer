@@ -30,6 +30,10 @@ from noise_analyzer.io.validation import (
     validate_nonempty_signal,
 )
 from noise_analyzer.models.signal import SignalRecord
+from noise_analyzer.dsp.band_power import (
+    BandPowerResult,
+    calculate_band_power,
+)
 
 
 @dataclass(frozen=True)
@@ -48,6 +52,8 @@ class SingleChannelAnalysisConfig:
 
     peak_min_prominence: float
     peak_min_distance_hz: float | None = None
+
+    band_power_ranges_hz: tuple[tuple[float, float], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -68,6 +74,8 @@ class SingleChannelAnalysisResult:
     peaks: PeakDetectionResult
 
     config: SingleChannelAnalysisConfig
+
+    band_powers: tuple[BandPowerResult, ...]
 
 
 def analyze_single_channel(
@@ -93,6 +101,16 @@ def analyze_single_channel(
         nperseg=config.psd_nperseg,
         noverlap=config.psd_noverlap,
         window=config.psd_window,
+    )
+
+    band_powers = tuple(
+        calculate_band_power(
+            psd,
+            lower_frequency_hz=lower_frequency_hz,
+            upper_frequency_hz=upper_frequency_hz,
+        )
+        for lower_frequency_hz, upper_frequency_hz
+        in config.band_power_ranges_hz
     )
 
     asd = calculate_asd_from_psd(psd)
@@ -122,5 +140,6 @@ def analyze_single_channel(
         asd=asd,
         spectrogram=spectrogram,
         peaks=peaks,
+        band_powers=band_powers,
         config=config,
     )
