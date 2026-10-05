@@ -40,6 +40,17 @@ from noise_analyzer.dsp.noise_floor import (
     estimate_noise_floor,
 )
 
+from noise_analyzer.dsp.spectral_features import (
+    PSDPercentilesResult,
+    SpectralCentroidResult,
+    SpectralFlatnessResult,
+    SpectralSpreadResult,
+    calculate_psd_percentiles,
+    calculate_spectral_centroid,
+    calculate_spectral_flatness,
+    calculate_spectral_spread,
+)
+
 @dataclass(frozen=True)
 class SingleChannelAnalysisConfig:
     """Configuration for the single-channel analysis pipeline."""
@@ -86,6 +97,11 @@ class SingleChannelAnalysisResult:
 
     noise_floor: NoiseFloorResult | None
 
+    spectral_flatness: SpectralFlatnessResult | None
+    spectral_centroid: SpectralCentroidResult | None
+    spectral_spread: SpectralSpreadResult | None
+    psd_percentiles: PSDPercentilesResult | None
+
 
 def analyze_single_channel(
     record: SignalRecord,
@@ -111,6 +127,20 @@ def analyze_single_channel(
         noverlap=config.psd_noverlap,
         window=config.psd_window,
     )
+
+    if constant_signal or psd.integrated_power <= 0:
+        spectral_flatness = None
+        spectral_centroid = None
+        spectral_spread = None
+        psd_percentiles = None
+    else:
+        spectral_flatness = calculate_spectral_flatness(psd)
+
+        spectral_centroid = calculate_spectral_centroid(psd)
+
+        spectral_spread = calculate_spectral_spread(psd)
+
+        psd_percentiles = calculate_psd_percentiles(psd)
 
     if constant_signal or psd.integrated_power <= 0:
         noise_floor = None
@@ -161,4 +191,8 @@ def analyze_single_channel(
         band_powers=band_powers,
         config=config,
         noise_floor=noise_floor,
+        spectral_flatness=spectral_flatness,
+        spectral_centroid=spectral_centroid,
+        spectral_spread=spectral_spread,
+        psd_percentiles=psd_percentiles,
     )
