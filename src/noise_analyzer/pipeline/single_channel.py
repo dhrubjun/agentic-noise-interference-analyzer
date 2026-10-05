@@ -56,6 +56,11 @@ from noise_analyzer.dsp.narrowband import (
     characterize_detected_lines,
 )
 
+from noise_analyzer.dsp.harmonics import (
+    AutomaticHarmonicSearchResult,
+    find_best_harmonic_family,
+)
+
 @dataclass(frozen=True)
 class SingleChannelAnalysisConfig:
     """Configuration for the single-channel analysis pipeline."""
@@ -80,6 +85,10 @@ class SingleChannelAnalysisConfig:
 
     narrowband_neighbourhood_width_hz: float = 100.0
     narrowband_excluded_peak_width_hz: float = 5.0
+
+    harmonic_tolerance_hz: float = 1.0
+    harmonic_max_order: int = 10
+    harmonic_minimum_matches: int = 3
 
 
 @dataclass(frozen=True)
@@ -111,6 +120,8 @@ class SingleChannelAnalysisResult:
     psd_percentiles: PSDPercentilesResult | None
 
     narrowband_lines: NarrowbandCharacterizationResult | None
+
+    harmonic_family: AutomaticHarmonicSearchResult | None
 
 
 def analyze_single_channel(
@@ -186,6 +197,16 @@ def analyze_single_channel(
         min_distance_hz=config.peak_min_distance_hz,
     )
 
+    if constant_signal or len(peaks.peaks) < 2:
+        harmonic_family = None
+    else:
+        harmonic_family = find_best_harmonic_family(
+            peaks,
+            tolerance_hz=config.harmonic_tolerance_hz,
+            max_harmonic_order=config.harmonic_max_order,
+            minimum_matches=config.harmonic_minimum_matches,
+        )
+
     if constant_signal or psd.integrated_power <= 0:
         narrowband_lines = None
     else:
@@ -220,4 +241,5 @@ def analyze_single_channel(
         spectral_spread=spectral_spread,
         psd_percentiles=psd_percentiles,
         narrowband_lines=narrowband_lines,
+        harmonic_family=harmonic_family,
     )
