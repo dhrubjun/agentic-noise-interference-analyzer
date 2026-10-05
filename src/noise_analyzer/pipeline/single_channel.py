@@ -51,6 +51,11 @@ from noise_analyzer.dsp.spectral_features import (
     calculate_spectral_spread,
 )
 
+from noise_analyzer.dsp.narrowband import (
+    NarrowbandCharacterizationResult,
+    characterize_detected_lines,
+)
+
 @dataclass(frozen=True)
 class SingleChannelAnalysisConfig:
     """Configuration for the single-channel analysis pipeline."""
@@ -72,6 +77,9 @@ class SingleChannelAnalysisConfig:
 
     noise_floor_lower_frequency_hz: float | None = None
     noise_floor_upper_frequency_hz: float | None = None
+
+    narrowband_neighbourhood_width_hz: float = 100.0
+    narrowband_excluded_peak_width_hz: float = 5.0
 
 
 @dataclass(frozen=True)
@@ -101,6 +109,8 @@ class SingleChannelAnalysisResult:
     spectral_centroid: SpectralCentroidResult | None
     spectral_spread: SpectralSpreadResult | None
     psd_percentiles: PSDPercentilesResult | None
+
+    narrowband_lines: NarrowbandCharacterizationResult | None
 
 
 def analyze_single_channel(
@@ -176,6 +186,20 @@ def analyze_single_channel(
         min_distance_hz=config.peak_min_distance_hz,
     )
 
+    if constant_signal or psd.integrated_power <= 0:
+        narrowband_lines = None
+    else:
+        narrowband_lines = characterize_detected_lines(
+            psd,
+            peaks,
+            neighbourhood_width_hz=(
+                config.narrowband_neighbourhood_width_hz
+            ),
+            excluded_peak_width_hz=(
+                config.narrowband_excluded_peak_width_hz
+            ),
+        )
+
     return SingleChannelAnalysisResult(
         number_of_samples=record.number_of_samples,
         sample_rate_hz=record.sample_rate_hz,
@@ -195,4 +219,5 @@ def analyze_single_channel(
         spectral_centroid=spectral_centroid,
         spectral_spread=spectral_spread,
         psd_percentiles=psd_percentiles,
+        narrowband_lines=narrowband_lines,
     )

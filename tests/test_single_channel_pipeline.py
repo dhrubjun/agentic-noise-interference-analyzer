@@ -127,6 +127,8 @@ def test_single_channel_pipeline_flags_constant_signal():
     assert result.spectral_spread is None
     assert result.psd_percentiles is None
 
+    assert result.narrowband_lines is None
+
 def test_single_channel_pipeline_calculates_band_power():
     _, samples = generate_two_tone(
         frequency_1_hz=300.0,
@@ -280,4 +282,86 @@ def test_single_channel_pipeline_includes_spectral_features():
     assert np.isclose(
         result.psd_percentiles.percentile_50_db,
         result.noise_floor.noise_floor_db,
+    )
+
+def test_single_channel_pipeline_characterizes_narrowband_lines():
+    sample_rate_hz = 10000.0
+    duration_seconds = 10.0
+
+    number_of_samples = int(
+        sample_rate_hz * duration_seconds
+    )
+
+    time = (
+        np.arange(number_of_samples)
+        / sample_rate_hz
+    )
+
+    rng = np.random.default_rng(42)
+
+    samples = (
+        rng.normal(
+            scale=0.5,
+            size=number_of_samples,
+        )
+        + 2.0 * np.sin(
+            2.0 * np.pi * 1000.0 * time
+        )
+        + 1.5 * np.sin(
+            2.0 * np.pi * 2000.0 * time
+        )
+    )
+
+    record = SignalRecord(
+        samples=samples,
+        sample_rate_hz=sample_rate_hz,
+    )
+
+    config = SingleChannelAnalysisConfig(
+        spectrum_window="hann",
+        psd_nperseg=10000,
+        psd_noverlap=5000,
+        psd_window="hann",
+        spectrogram_nperseg=1000,
+        spectrogram_noverlap=500,
+        spectrogram_window="hann",
+        peak_min_prominence=0.5,
+        peak_min_distance_hz=100.0,
+        band_power_ranges_hz=(),
+        narrowband_neighbourhood_width_hz=100.0,
+        narrowband_excluded_peak_width_hz=5.0,
+    )
+
+    result = analyze_single_channel(
+        record,
+        config,
+    )
+
+    assert result.narrowband_lines is not None
+
+    assert len(
+        result.narrowband_lines.lines
+    ) >= 2
+
+    frequencies = [
+        line.frequency_hz
+        for line in result.narrowband_lines.lines
+    ]
+
+    assert any(
+        np.isclose(
+            frequency,
+            1000.0,
+            atol=result.psd.frequency_resolution_hz,
+        )
+        for frequency in frequencies
+    )
+
+    assert any(
+        np.isclose(
+            frequency,
+            2000.0,
+            atol=result.psd.frequency_resolution_hz,
+        )
+        for frequency in frequencies
     )
