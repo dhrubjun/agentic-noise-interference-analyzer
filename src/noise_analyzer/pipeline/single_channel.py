@@ -65,6 +65,10 @@ from noise_analyzer.dsp.characterization import (
     CharacterizationResult,
     characterize_spectral_behavior,
 )
+from noise_analyzer.dsp.spectral_features import (
+    OccupiedBandwidthResult,
+    calculate_occupied_bandwidth,
+)
 
 @dataclass(frozen=True)
 class SingleChannelAnalysisConfig:
@@ -100,6 +104,12 @@ class SingleChannelAnalysisConfig:
     characterization_strong_line_threshold_db: float = 10.0
     characterization_harmonic_minimum_matches: int = 3
 
+    harmonic_relative_tolerance_fraction: float = 0.01
+    harmonic_minimum_match_fraction: float = 0.5
+    harmonic_minimum_consecutive_matches: int = 3
+
+    occupied_bandwidth_power_fraction: float = 0.90
+
 
 @dataclass(frozen=True)
 class SingleChannelAnalysisResult:
@@ -134,6 +144,8 @@ class SingleChannelAnalysisResult:
     harmonic_family: AutomaticHarmonicSearchResult | None
 
     characterization: CharacterizationResult | None
+
+    occupied_bandwidth: OccupiedBandwidthResult | None
 
 
 def analyze_single_channel(
@@ -217,6 +229,18 @@ def analyze_single_channel(
             tolerance_hz=config.harmonic_tolerance_hz,
             max_harmonic_order=config.harmonic_max_order,
             minimum_matches=config.harmonic_minimum_matches,
+            frequency_resolution_hz=(
+                spectrum.frequency_resolution_hz
+            ),
+            relative_tolerance_fraction=(
+                config.harmonic_relative_tolerance_fraction
+            ),
+            minimum_match_fraction=(
+                config.harmonic_minimum_match_fraction
+            ),
+            minimum_consecutive_matches=(
+                config.harmonic_minimum_consecutive_matches
+            ),
         )
 
     if constant_signal or psd.integrated_power <= 0:
@@ -258,6 +282,16 @@ def analyze_single_channel(
             ),
         )
 
+    if constant_signal or psd.integrated_power <= 0:
+        occupied_bandwidth = None
+    else:
+        occupied_bandwidth = calculate_occupied_bandwidth(
+            psd,
+            power_fraction=(
+                config.occupied_bandwidth_power_fraction
+            ),
+        )
+
     return SingleChannelAnalysisResult(
         number_of_samples=record.number_of_samples,
         sample_rate_hz=record.sample_rate_hz,
@@ -280,4 +314,5 @@ def analyze_single_channel(
         narrowband_lines=narrowband_lines,
         harmonic_family=harmonic_family,
         characterization=characterization,
+        occupied_bandwidth=occupied_bandwidth,
     )

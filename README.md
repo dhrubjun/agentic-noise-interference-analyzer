@@ -2,7 +2,7 @@
 
 A DSP-based framework for detecting, characterizing, and investigating noise and interference in sampled signals, with a long-term goal of supporting agentic AI-assisted signal investigation.
 
-> **Project status:** Early development - V0.1 specification and validation framework defined.
+> Project status: V0.2 complete - validated single-channel noise and interference characterization.
 
 ---
 
@@ -312,21 +312,49 @@ The roadmap may evolve as the DSP validation work and experimental requirements 
 
 ## Current Status
 
-The project is currently at the beginning of **V0.1**.
+V0.2 is complete.
 
-Completed:
+Completed capabilities include:
 
-- initial project concept;
-- V0.1 scope definition;
-- V0.1 engineering specification;
-- initial validation matrix;
-- review of potentially reusable DSP components from previous work.
+- validated single-channel signal analysis;
+- time-domain statistics;
+- amplitude spectrum;
+- Welch PSD;
+- ASD;
+- spectrogram;
+- spectral peak detection;
+- band-power measurement;
+- global noise-floor estimation;
+- PSD percentiles;
+- spectral flatness;
+- spectral centroid;
+- spectral spread;
+- occupied bandwidth;
+- local noise-floor estimation;
+- line-to-floor characterization;
+- harmonic-family analysis;
+- conservative spectral characterization;
+- reproducible JSON configuration and results;
+- synthetic end-to-end validation;
+- real vibration-data validation;
+- real environmental-audio validation.
 
-Next:
+Current characterization labels are:
 
-- establish the Python project environment;
-- implement deterministic synthetic reference-signal generation;
-- begin V0.1 module development and numerical validation.
+- `broadband-dominant`
+- `tonal-dominant`
+- `mixed`
+- `harmonic-rich`
+- `undetermined`
+
+The analyzer intentionally avoids physical source attribution.
+
+For example, detecting a component near 50 Hz does not prove that the source is mains interference.
+
+Next development stage:
+
+```text
+V0.3 Event and Anomaly Detection
 
 ---
 

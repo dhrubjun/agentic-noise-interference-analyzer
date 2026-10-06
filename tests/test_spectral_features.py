@@ -1,12 +1,14 @@
 import numpy as np
 import pytest
 
-from noise_analyzer.dsp.psd import calculate_welch_psd
 from noise_analyzer.dsp.noise_floor import (
     estimate_noise_floor,
 )
-
+from noise_analyzer.dsp.psd import (
+    calculate_welch_psd,
+)
 from noise_analyzer.dsp.spectral_features import (
+    calculate_occupied_bandwidth,
     calculate_psd_percentiles,
     calculate_spectral_centroid,
     calculate_spectral_flatness,
@@ -149,6 +151,7 @@ def test_spectral_flatness_rejects_frequency_above_nyquist():
             upper_frequency_hz=6000.0,
         )
 
+
 def test_high_frequency_tone_has_higher_centroid():
     sample_rate_hz = 10000.0
     duration_seconds = 5.0
@@ -185,6 +188,7 @@ def test_high_frequency_tone_has_higher_centroid():
         high_result.spectral_centroid_hz
         > low_result.spectral_centroid_hz
     )
+
 
 def test_broadband_noise_has_larger_spread_than_tone():
     sample_rate_hz = 10000.0
@@ -226,6 +230,7 @@ def test_broadband_noise_has_larger_spread_than_tone():
         > tone_spread.spectral_spread_hz
     )
 
+
 def test_psd_percentiles_are_ordered():
     rng = np.random.default_rng(42)
 
@@ -245,6 +250,7 @@ def test_psd_percentiles_are_ordered():
         <= result.percentile_90_db
     )
 
+
 def test_psd_50th_percentile_matches_noise_floor_median():
     rng = np.random.default_rng(42)
 
@@ -262,3 +268,140 @@ def test_psd_50th_percentile_matches_noise_floor_median():
         percentiles.percentile_50_db,
         noise_floor.noise_floor_db,
     )
+
+
+def test_white_noise_has_large_occupied_bandwidth():
+    rng = np.random.default_rng(42)
+
+    sample_rate_hz = 10000.0
+    duration_seconds = 10.0
+
+    number_of_samples = int(
+        sample_rate_hz * duration_seconds
+    )
+
+    samples = rng.normal(
+        size=number_of_samples
+    )
+
+    psd = calculate_test_psd(
+        samples,
+        sample_rate_hz,
+    )
+
+    result = calculate_occupied_bandwidth(
+        psd,
+        power_fraction=0.90,
+    )
+
+    assert result.occupied_bandwidth_hz > 4000.0
+
+
+def test_tone_has_small_occupied_bandwidth():
+    sample_rate_hz = 10000.0
+    duration_seconds = 10.0
+
+    number_of_samples = int(
+        sample_rate_hz * duration_seconds
+    )
+
+    time = (
+        np.arange(number_of_samples)
+        / sample_rate_hz
+    )
+
+    samples = np.sin(
+        2.0
+        * np.pi
+        * 1000.0
+        * time
+    )
+
+    psd = calculate_test_psd(
+        samples,
+        sample_rate_hz,
+    )
+
+    result = calculate_occupied_bandwidth(
+        psd,
+        power_fraction=0.90,
+    )
+
+    assert result.occupied_bandwidth_hz < 10.0
+
+
+def test_white_noise_has_wider_occupied_bandwidth_than_tone():
+    rng = np.random.default_rng(42)
+
+    sample_rate_hz = 10000.0
+    duration_seconds = 10.0
+
+    number_of_samples = int(
+        sample_rate_hz * duration_seconds
+    )
+
+    time = (
+        np.arange(number_of_samples)
+        / sample_rate_hz
+    )
+
+    noise = rng.normal(
+        size=number_of_samples
+    )
+
+    tone = np.sin(
+        2.0
+        * np.pi
+        * 1000.0
+        * time
+    )
+
+    noise_psd = calculate_test_psd(
+        noise,
+        sample_rate_hz,
+    )
+
+    tone_psd = calculate_test_psd(
+        tone,
+        sample_rate_hz,
+    )
+
+    noise_bandwidth = calculate_occupied_bandwidth(
+        noise_psd
+    )
+
+    tone_bandwidth = calculate_occupied_bandwidth(
+        tone_psd
+    )
+
+    assert (
+        noise_bandwidth.occupied_bandwidth_hz
+        >
+        tone_bandwidth.occupied_bandwidth_hz
+    )
+
+
+def test_occupied_bandwidth_rejects_invalid_fraction():
+    rng = np.random.default_rng(42)
+
+    samples = rng.normal(
+        size=10000
+    )
+
+    record = SignalRecord(
+        samples=samples,
+        sample_rate_hz=1000.0,
+    )
+
+    psd = calculate_welch_psd(
+        record,
+        nperseg=1000,
+        noverlap=500,
+        window="hann",
+    )
+
+    with pytest.raises(ValueError):
+        calculate_occupied_bandwidth(
+            psd,
+            power_fraction=1.0,
+        )

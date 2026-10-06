@@ -82,6 +82,22 @@ def save_analysis_json(
             result.config
             .characterization_harmonic_minimum_matches
         ),
+
+        "harmonic_relative_tolerance_fraction": (
+            result.config.harmonic_relative_tolerance_fraction
+        ),
+
+        "harmonic_minimum_match_fraction": (
+            result.config.harmonic_minimum_match_fraction
+        ),
+
+        "harmonic_minimum_consecutive_matches": (
+            result.config.harmonic_minimum_consecutive_matches
+        ),
+
+        "occupied_bandwidth_power_fraction": (
+            result.config.occupied_bandwidth_power_fraction
+        ),
     }
 
     results_data = {
@@ -342,6 +358,25 @@ def save_analysis_json(
                         .harmonic_minimum_matches
                     ),
                 },
+            }
+        ),
+
+        "occupied_bandwidth": (
+            None
+            if result.occupied_bandwidth is None
+            else {
+                "occupied_bandwidth_hz": (
+                    result.occupied_bandwidth.occupied_bandwidth_hz
+                ),
+                "lower_edge_hz": (
+                    result.occupied_bandwidth.lower_edge_hz
+                ),
+                "upper_edge_hz": (
+                    result.occupied_bandwidth.upper_edge_hz
+                ),
+                "power_fraction": (
+                    result.occupied_bandwidth.power_fraction
+                ),
             }
         ),
 

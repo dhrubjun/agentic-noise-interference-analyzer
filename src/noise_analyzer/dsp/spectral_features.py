@@ -40,6 +40,13 @@ class PSDPercentilesResult:
     upper_frequency_hz: float
     number_of_bins: int
 
+@dataclass(frozen=True)
+class OccupiedBandwidthResult:
+    occupied_bandwidth_hz: float
+    lower_edge_hz: float
+    upper_edge_hz: float
+    power_fraction: float
+
 
 def calculate_spectral_flatness(
     psd_result: PSDResult,
@@ -269,4 +276,111 @@ def calculate_psd_percentiles(
         lower_frequency_hz=float(lower_frequency_hz),
         upper_frequency_hz=float(upper_frequency_hz),
         number_of_bins=int(positive_psd.size),
+    )
+
+def calculate_occupied_bandwidth(
+    psd_result: PSDResult,
+    power_fraction: float = 0.90,
+) -> OccupiedBandwidthResult:
+    """
+    Calculate the frequency interval containing a chosen
+    fraction of the total integrated spectral power.
+
+    For power_fraction=0.90, 5% of the power is excluded
+    from each side of the spectrum.
+    """
+
+    if not 0.0 < power_fraction < 1.0:
+        raise ValueError(
+            "power_fraction must be between 0 and 1."
+        )
+
+    frequencies = np.asarray(
+        psd_result.frequencies_hz,
+        dtype=float,
+    )
+
+    psd_values = np.asarray(
+        psd_result.psd,
+        dtype=float,
+    )
+
+    if frequencies.size < 2:
+        raise ValueError(
+            "At least two PSD frequency bins are required."
+        )
+
+    if np.any(psd_values < 0):
+        raise ValueError(
+            "PSD values must be non-negative."
+        )
+
+    # Power contained between each neighbouring
+    # pair of frequency bins.
+    frequency_steps = np.diff(frequencies)
+
+    segment_powers = (
+        0.5
+        * (
+            psd_values[:-1]
+            + psd_values[1:]
+        )
+        * frequency_steps
+    )
+
+    total_power = float(
+        np.sum(segment_powers)
+    )
+
+    if total_power <= 0:
+        raise ValueError(
+            "PSD contains no positive integrated power."
+        )
+
+    cumulative_power = np.concatenate(
+        (
+            [0.0],
+            np.cumsum(segment_powers),
+        )
+    )
+
+    excluded_fraction = (
+        1.0 - power_fraction
+    )
+
+    lower_target = (
+        excluded_fraction
+        / 2.0
+        * total_power
+    )
+
+    upper_target = (
+        1.0
+        - excluded_fraction / 2.0
+    ) * total_power
+
+    lower_edge_hz = float(
+        np.interp(
+            lower_target,
+            cumulative_power,
+            frequencies,
+        )
+    )
+
+    upper_edge_hz = float(
+        np.interp(
+            upper_target,
+            cumulative_power,
+            frequencies,
+        )
+    )
+
+    return OccupiedBandwidthResult(
+        occupied_bandwidth_hz=(
+            upper_edge_hz
+            - lower_edge_hz
+        ),
+        lower_edge_hz=lower_edge_hz,
+        upper_edge_hz=upper_edge_hz,
+        power_fraction=float(power_fraction),
     )
