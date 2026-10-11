@@ -98,6 +98,37 @@ def save_analysis_json(
         "occupied_bandwidth_power_fraction": (
             result.config.occupied_bandwidth_power_fraction
         ),
+
+        "event_analysis": (
+            None
+            if result.config.event_analysis_config is None
+            else {
+                "frame_length_samples": (
+                    result.config.event_analysis_config
+                    .frame_length_samples
+                ),
+                "hop_length_samples": (
+                    result.config.event_analysis_config
+                    .hop_length_samples
+                ),
+                "start_threshold": (
+                    result.config.event_analysis_config
+                    .start_threshold
+                ),
+                "end_threshold": (
+                    result.config.event_analysis_config
+                    .end_threshold
+                ),
+                "minimum_event_duration_s": (
+                    result.config.event_analysis_config
+                    .minimum_event_duration_s
+                ),
+                "merge_gap_s": (
+                    result.config.event_analysis_config
+                    .merge_gap_s
+                ),
+            }
+        ),
     }
 
     results_data = {
@@ -377,6 +408,92 @@ def save_analysis_json(
                 "power_fraction": (
                     result.occupied_bandwidth.power_fraction
                 ),
+            }
+        ),
+
+        "event_analysis": (
+            None
+            if result.event_analysis is None
+            else {
+                "feature": "short_time_rms",
+
+                "baseline": {
+                    "location": (
+                        result.event_analysis.baseline.location
+                    ),
+                    "mad": (
+                        result.event_analysis.baseline.mad
+                    ),
+                    "robust_scale": (
+                        result.event_analysis.baseline.robust_scale
+                    ),
+                    "method": (
+                        result.event_analysis.baseline.method
+                    ),
+                    "status": (
+                        result.event_analysis.baseline.status
+                    ),
+                    "number_of_values": (
+                        result.event_analysis.baseline
+                        .number_of_values
+                    ),
+                },
+
+                "frame": {
+                    "frame_length_samples": (
+                        result.event_analysis.feature_track
+                        .frame_length_samples
+                    ),
+                    "hop_length_samples": (
+                        result.event_analysis.feature_track
+                        .hop_length_samples
+                    ),
+                    "frame_length_seconds": (
+                        result.event_analysis.feature_track
+                        .frame_length_seconds
+                    ),
+                    "hop_length_seconds": (
+                        result.event_analysis.feature_track
+                        .hop_length_seconds
+                    ),
+                },
+
+                "number_of_raw_events": len(
+                    result.event_analysis.raw_events
+                ),
+
+                "number_of_events": len(
+                    result.event_analysis.events
+                ),
+
+                "events": [
+                    {
+                        "start_index": event.start_index,
+                        "end_index": event.end_index,
+                        "start_time_s": event.start_time_s,
+                        "end_time_s": event.end_time_s,
+                        "peak_index": event.peak_index,
+                        "peak_time_s": event.peak_time_s,
+                        "peak_score": event.peak_score,
+
+                        "support_duration_s": (
+                            measurement.support_duration_s
+                        ),
+                        "peak_rms": measurement.peak_rms,
+                        "mean_rms": measurement.mean_rms,
+                        "baseline_rms": (
+                            measurement.baseline_rms
+                        ),
+                        "rms_ratio_to_baseline": (
+                            measurement.rms_ratio_to_baseline
+                        ),
+                    }
+                    for event, measurement
+                    in zip(
+                        result.event_analysis.events,
+                        result.event_analysis.measurements,
+                    )
+                ],
             }
         ),
 

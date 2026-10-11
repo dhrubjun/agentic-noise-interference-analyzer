@@ -1,7 +1,9 @@
 import numpy as np
 
 from noise_analyzer.models.signal import SignalRecord
+
 from noise_analyzer.pipeline.single_channel import (
+    EventAnalysisConfig,
     SingleChannelAnalysisConfig,
     analyze_single_channel,
 )
@@ -132,6 +134,8 @@ def test_single_channel_pipeline_flags_constant_signal():
     assert result.harmonic_family is None
 
     assert result.characterization is None
+
+    assert result.event_analysis is None
 
 def test_single_channel_pipeline_calculates_band_power():
     _, samples = generate_two_tone(
@@ -499,3 +503,83 @@ def test_single_channel_pipeline_includes_characterization():
         result.characterization.strong_line_count
         >= 1
     )
+
+def test_single_channel_pipeline_detects_rms_event():
+    sample_rate_hz = 1000.0
+    duration_seconds = 4.0
+
+    time = np.arange(
+        int(sample_rate_hz * duration_seconds)
+    ) / sample_rate_hz
+
+    samples = (
+        np.sin(
+            2.0 * np.pi * 100.0 * time
+        )
+        + 0.02 * np.sin(
+            2.0 * np.pi * 17.0 * time
+        )
+    )
+
+    event_mask = (
+        (time >= 2.0)
+        & (time < 2.5)
+    )
+
+    samples[event_mask] *= 4.0
+
+    record = SignalRecord(
+        samples=samples,
+        sample_rate_hz=sample_rate_hz,
+    )
+
+    config = SingleChannelAnalysisConfig(
+        spectrum_window="hann",
+        psd_nperseg=1000,
+        psd_noverlap=500,
+        psd_window="hann",
+        spectrogram_nperseg=200,
+        spectrogram_noverlap=100,
+        spectrogram_window="hann",
+        peak_min_prominence=0.1,
+        event_analysis_config=EventAnalysisConfig(
+            frame_length_samples=100,
+            hop_length_samples=50,
+            start_threshold=6.0,
+            end_threshold=3.0,
+            minimum_event_duration_s=0.2,
+            merge_gap_s=0.1,
+        ),
+    )
+
+    result = analyze_single_channel(
+        record,
+        config,
+    )
+
+    assert result.event_analysis is not None
+
+    assert (
+        result.event_analysis.baseline.status
+        == "valid"
+    )
+
+    assert len(
+        result.event_analysis.events
+    ) == 1
+
+    assert len(
+        result.event_analysis.measurements
+    ) == 1
+
+    event = result.event_analysis.events[0]
+
+    measurement = (
+        result.event_analysis.measurements[0]
+    )
+
+    assert event.start_time_s <= 2.1
+    assert event.end_time_s >= 2.4
+
+    assert measurement.peak_score > 6.0
+    assert measurement.rms_ratio_to_baseline > 3.0

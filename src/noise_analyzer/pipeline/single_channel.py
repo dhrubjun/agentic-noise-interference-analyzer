@@ -1,8 +1,43 @@
 from dataclasses import dataclass
 
+from noise_analyzer.dsp.anomaly import (
+    DeviationScoreResult,
+    calculate_robust_deviation_scores,
+)
 from noise_analyzer.dsp.asd import (
     ASDResult,
     calculate_asd_from_psd,
+)
+from noise_analyzer.dsp.band_power import (
+    BandPowerResult,
+    calculate_band_power,
+)
+from noise_analyzer.dsp.baseline import (
+    BaselineResult,
+    estimate_robust_baseline,
+)
+from noise_analyzer.dsp.characterization import (
+    CharacterizationResult,
+    characterize_spectral_behavior,
+)
+from noise_analyzer.dsp.events import (
+    EventInterval,
+    EventMeasurement,
+    detect_events_with_hysteresis,
+    measure_rms_event,
+    postprocess_events,
+)
+from noise_analyzer.dsp.harmonics import (
+    AutomaticHarmonicSearchResult,
+    find_best_harmonic_family,
+)
+from noise_analyzer.dsp.narrowband import (
+    NarrowbandCharacterizationResult,
+    characterize_detected_lines,
+)
+from noise_analyzer.dsp.noise_floor import (
+    NoiseFloorResult,
+    estimate_noise_floor,
 )
 from noise_analyzer.dsp.peaks import (
     PeakDetectionResult,
@@ -11,6 +46,22 @@ from noise_analyzer.dsp.peaks import (
 from noise_analyzer.dsp.psd import (
     PSDResult,
     calculate_welch_psd,
+)
+from noise_analyzer.dsp.short_time import (
+    ShortTimeRMSResult,
+    calculate_short_time_rms,
+)
+from noise_analyzer.dsp.spectral_features import (
+    OccupiedBandwidthResult,
+    PSDPercentilesResult,
+    SpectralCentroidResult,
+    SpectralFlatnessResult,
+    SpectralSpreadResult,
+    calculate_occupied_bandwidth,
+    calculate_psd_percentiles,
+    calculate_spectral_centroid,
+    calculate_spectral_flatness,
+    calculate_spectral_spread,
 )
 from noise_analyzer.dsp.spectrogram import (
     SpectrogramResult,
@@ -30,45 +81,34 @@ from noise_analyzer.io.validation import (
     validate_nonempty_signal,
 )
 from noise_analyzer.models.signal import SignalRecord
-from noise_analyzer.dsp.band_power import (
-    BandPowerResult,
-    calculate_band_power,
-)
 
-from noise_analyzer.dsp.noise_floor import (
-    NoiseFloorResult,
-    estimate_noise_floor,
-)
 
-from noise_analyzer.dsp.spectral_features import (
-    PSDPercentilesResult,
-    SpectralCentroidResult,
-    SpectralFlatnessResult,
-    SpectralSpreadResult,
-    calculate_psd_percentiles,
-    calculate_spectral_centroid,
-    calculate_spectral_flatness,
-    calculate_spectral_spread,
-)
+@dataclass(frozen=True)
+class EventAnalysisConfig:
+    """Configuration for V0.3 RMS-based event analysis."""
 
-from noise_analyzer.dsp.narrowband import (
-    NarrowbandCharacterizationResult,
-    characterize_detected_lines,
-)
+    frame_length_samples: int
+    hop_length_samples: int
 
-from noise_analyzer.dsp.harmonics import (
-    AutomaticHarmonicSearchResult,
-    find_best_harmonic_family,
-)
+    start_threshold: float
+    end_threshold: float
 
-from noise_analyzer.dsp.characterization import (
-    CharacterizationResult,
-    characterize_spectral_behavior,
-)
-from noise_analyzer.dsp.spectral_features import (
-    OccupiedBandwidthResult,
-    calculate_occupied_bandwidth,
-)
+    minimum_event_duration_s: float = 0.0
+    merge_gap_s: float = 0.0
+
+
+@dataclass(frozen=True)
+class EventAnalysisResult:
+    """Structured V0.3 RMS event-analysis result."""
+
+    feature_track: ShortTimeRMSResult
+    baseline: BaselineResult
+    deviation_scores: DeviationScoreResult
+
+    raw_events: tuple[EventInterval, ...]
+    events: tuple[EventInterval, ...]
+    measurements: tuple[EventMeasurement, ...]
+
 
 @dataclass(frozen=True)
 class SingleChannelAnalysisConfig:
@@ -110,6 +150,8 @@ class SingleChannelAnalysisConfig:
 
     occupied_bandwidth_power_fraction: float = 0.90
 
+    event_analysis_config: EventAnalysisConfig | None = None
+
 
 @dataclass(frozen=True)
 class SingleChannelAnalysisResult:
@@ -147,12 +189,14 @@ class SingleChannelAnalysisResult:
 
     occupied_bandwidth: OccupiedBandwidthResult | None
 
+    event_analysis: EventAnalysisResult | None
+
 
 def analyze_single_channel(
     record: SignalRecord,
     config: SingleChannelAnalysisConfig,
 ) -> SingleChannelAnalysisResult:
-    """Run the validated V0.1 analysis modules on one signal."""
+    """Run the validated single-channel analysis pipeline."""
 
     validate_nonempty_signal(record)
     validate_finite_samples(record)
@@ -179,21 +223,33 @@ def analyze_single_channel(
         spectral_spread = None
         psd_percentiles = None
     else:
-        spectral_flatness = calculate_spectral_flatness(psd)
+        spectral_flatness = calculate_spectral_flatness(
+            psd
+        )
 
-        spectral_centroid = calculate_spectral_centroid(psd)
+        spectral_centroid = calculate_spectral_centroid(
+            psd
+        )
 
-        spectral_spread = calculate_spectral_spread(psd)
+        spectral_spread = calculate_spectral_spread(
+            psd
+        )
 
-        psd_percentiles = calculate_psd_percentiles(psd)
+        psd_percentiles = calculate_psd_percentiles(
+            psd
+        )
 
     if constant_signal or psd.integrated_power <= 0:
         noise_floor = None
     else:
         noise_floor = estimate_noise_floor(
             psd,
-            lower_frequency_hz=config.noise_floor_lower_frequency_hz,
-            upper_frequency_hz=config.noise_floor_upper_frequency_hz,
+            lower_frequency_hz=(
+                config.noise_floor_lower_frequency_hz
+            ),
+            upper_frequency_hz=(
+                config.noise_floor_upper_frequency_hz
+            ),
         )
 
     band_powers = tuple(
@@ -206,7 +262,9 @@ def analyze_single_channel(
         in config.band_power_ranges_hz
     )
 
-    asd = calculate_asd_from_psd(psd)
+    asd = calculate_asd_from_psd(
+        psd
+    )
 
     spectrogram = calculate_spectrogram(
         record,
@@ -292,6 +350,90 @@ def analyze_single_channel(
             ),
         )
 
+    # V0.3 RMS-based event analysis
+    if config.event_analysis_config is None:
+        event_analysis = None
+
+    elif constant_signal:
+        event_analysis = None
+
+    else:
+        event_config = config.event_analysis_config
+
+        feature_track = calculate_short_time_rms(
+            record,
+            frame_length_samples=(
+                event_config.frame_length_samples
+            ),
+            hop_length_samples=(
+                event_config.hop_length_samples
+            ),
+        )
+
+        baseline = estimate_robust_baseline(
+            feature_track.rms
+        )
+
+        if baseline.status != "valid":
+            event_analysis = None
+
+        else:
+            deviation_scores = (
+                calculate_robust_deviation_scores(
+                    feature_track.rms,
+                    baseline,
+                )
+            )
+
+            raw_events_list = (
+                detect_events_with_hysteresis(
+                    times_seconds=(
+                        feature_track.times_seconds
+                    ),
+                    scores=deviation_scores.scores,
+                    start_threshold=(
+                        event_config.start_threshold
+                    ),
+                    end_threshold=(
+                        event_config.end_threshold
+                    ),
+                )
+            )
+
+            final_events_list = postprocess_events(
+                raw_events_list,
+                frame_length_seconds=(
+                    feature_track.frame_length_seconds
+                ),
+                minimum_event_duration_s=(
+                    event_config.minimum_event_duration_s
+                ),
+                merge_gap_s=(
+                    event_config.merge_gap_s
+                ),
+            )
+
+            measurements = tuple(
+                measure_rms_event(
+                    event=event,
+                    rms_values=feature_track.rms,
+                    baseline_rms=baseline.location,
+                    frame_length_seconds=(
+                        feature_track.frame_length_seconds
+                    ),
+                )
+                for event in final_events_list
+            )
+
+            event_analysis = EventAnalysisResult(
+                feature_track=feature_track,
+                baseline=baseline,
+                deviation_scores=deviation_scores,
+                raw_events=tuple(raw_events_list),
+                events=tuple(final_events_list),
+                measurements=measurements,
+            )
+
     return SingleChannelAnalysisResult(
         number_of_samples=record.number_of_samples,
         sample_rate_hz=record.sample_rate_hz,
@@ -304,8 +446,8 @@ def analyze_single_channel(
         asd=asd,
         spectrogram=spectrogram,
         peaks=peaks,
-        band_powers=band_powers,
         config=config,
+        band_powers=band_powers,
         noise_floor=noise_floor,
         spectral_flatness=spectral_flatness,
         spectral_centroid=spectral_centroid,
@@ -315,4 +457,5 @@ def analyze_single_channel(
         harmonic_family=harmonic_family,
         characterization=characterization,
         occupied_bandwidth=occupied_bandwidth,
+        event_analysis=event_analysis,
     )
