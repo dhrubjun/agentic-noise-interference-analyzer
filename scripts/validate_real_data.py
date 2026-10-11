@@ -4,6 +4,7 @@ from noise_analyzer.output.writer import (
     save_analysis_plots,
 )
 from noise_analyzer.pipeline.single_channel import (
+    EventAnalysisConfig,
     SingleChannelAnalysisConfig,
     analyze_single_channel,
 )
@@ -63,6 +64,17 @@ config = SingleChannelAnalysisConfig(
     characterization_tonal_flatness_threshold=0.10,
     characterization_strong_line_threshold_db=10.0,
     characterization_harmonic_minimum_matches=3,
+
+    event_analysis_config=EventAnalysisConfig(
+        frame_length_samples=1024,
+        hop_length_samples=256,
+        start_threshold=6.0,
+        end_threshold=3.0,
+        minimum_event_duration_s=0.5,
+        merge_gap_s=0.25,
+    ),
+
+    
 )
 
 
@@ -223,6 +235,120 @@ else:
             f"Strongest line/floor: "
             f"{result.characterization.strongest_line_to_floor_db:.2f} dB"
         )
+
+print()
+print("V0.3 event and anomaly analysis")
+print("-------------------------------")
+
+if result.event_analysis is None:
+    print("Event analysis unavailable.")
+
+else:
+    event_analysis = result.event_analysis
+
+    print(
+        f"Feature: short-time RMS"
+    )
+
+    print(
+        f"Baseline RMS: "
+        f"{event_analysis.baseline.location:.8g}"
+    )
+
+    print(
+        f"Baseline MAD: "
+        f"{event_analysis.baseline.mad:.8g}"
+    )
+
+    print(
+        f"Robust scale: "
+        f"{event_analysis.baseline.robust_scale:.8g}"
+    )
+
+    print(
+        f"Baseline status: "
+        f"{event_analysis.baseline.status}"
+    )
+
+    print(
+        f"Raw events: "
+        f"{len(event_analysis.raw_events)}"
+    )
+
+    print(
+        f"Final events: "
+        f"{len(event_analysis.events)}"
+    )
+
+    if len(event_analysis.events) == 0:
+        print(
+            "No RMS events exceeded the configured "
+            "detection thresholds."
+        )
+
+    else:
+        print()
+        print("Detected events")
+        print("---------------")
+
+        for event_number, (
+            event,
+            measurement,
+        ) in enumerate(
+            zip(
+                event_analysis.events,
+                event_analysis.measurements,
+            ),
+            start=1,
+        ):
+            print(
+                f"Event {event_number}"
+            )
+
+            print(
+                f"  Start: "
+                f"{event.start_time_s:.3f} s"
+            )
+
+            print(
+                f"  End: "
+                f"{event.end_time_s:.3f} s"
+            )
+
+            print(
+                f"  Support duration: "
+                f"{measurement.support_duration_s:.3f} s"
+            )
+
+            print(
+                f"  Peak time: "
+                f"{event.peak_time_s:.3f} s"
+            )
+
+            print(
+                f"  Peak deviation score: "
+                f"{event.peak_score:.3f}"
+            )
+
+            print(
+                f"  Baseline RMS: "
+                f"{measurement.baseline_rms:.8g}"
+            )
+
+            print(
+                f"  Mean event RMS: "
+                f"{measurement.mean_rms:.8g}"
+            )
+
+            print(
+                f"  Peak event RMS: "
+                f"{measurement.peak_rms:.8g}"
+            )
+
+            print(
+                f"  Peak RMS / baseline: "
+                f"{measurement.rms_ratio_to_baseline:.3f}x"
+            )
 
 
 output_dir = "outputs/real_H_WD1_WS1_01"
