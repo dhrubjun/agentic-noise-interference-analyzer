@@ -7,6 +7,11 @@ from noise_analyzer.dsp.events import (
     postprocess_events,
 )
 
+from noise_analyzer.dsp.short_time import (
+    calculate_short_time_band_power,
+    calculate_short_time_rms,
+)
+
 
 def test_detects_single_event_with_hysteresis():
     times = np.array(
@@ -655,3 +660,68 @@ def test_end_to_end_event_measurement_reports_large_rms_increase():
     assert measurement.mean_rms > baseline.location
     assert measurement.rms_ratio_to_baseline > 3.0
     assert measurement.peak_score > 6.0
+
+def test_detects_frequency_selective_event_end_to_end():
+    sample_rate_hz = 1000.0
+    duration_seconds = 4.0
+
+    time = np.arange(
+        int(sample_rate_hz * duration_seconds)
+    ) / sample_rate_hz
+
+    samples = 0.2 * np.sin(
+        2.0 * np.pi * 300.0 * time
+    )
+
+    event_mask = (
+        (time >= 2.0)
+        & (time < 2.5)
+    )
+
+    samples[event_mask] += np.sin(
+        2.0 * np.pi * 100.0 * time[event_mask]
+    )
+
+    record = SignalRecord(
+        samples=samples,
+        sample_rate_hz=sample_rate_hz,
+    )
+
+    band_result = calculate_short_time_band_power(
+        record,
+        lower_frequency_hz=80.0,
+        upper_frequency_hz=120.0,
+        frame_length_samples=200,
+        hop_length_samples=100,
+    )
+
+    baseline = estimate_robust_baseline(
+        band_result.band_power
+    )
+
+    score_result = calculate_robust_deviation_scores(
+        band_result.band_power,
+        baseline,
+    )
+
+    raw_events = detect_events_with_hysteresis(
+        times_seconds=band_result.times_seconds,
+        scores=score_result.scores,
+        start_threshold=6.0,
+        end_threshold=3.0,
+    )
+
+    final_events = postprocess_events(
+        raw_events,
+        frame_length_seconds=band_result.frame_length_seconds,
+        minimum_event_duration_s=0.2,
+        merge_gap_s=0.1,
+    )
+
+    assert len(final_events) == 1
+
+    event = final_events[0]
+
+    assert event.start_time_s <= 2.2
+    assert event.end_time_s >= 2.3
+    assert event.peak_score > 6.0

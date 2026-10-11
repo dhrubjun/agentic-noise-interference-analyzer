@@ -1,6 +1,7 @@
 import numpy as np
 
 from noise_analyzer.dsp.short_time import (
+    calculate_short_time_band_power,
     calculate_short_time_rms,
     frame_signal,
 )
@@ -240,3 +241,137 @@ def test_short_time_rms_tracks_amplitude_change():
         expected_after,
         atol=1e-12,
     )
+
+def test_short_time_band_power_detects_in_band_tone():
+    sample_rate_hz = 1000.0
+    frequency_hz = 100.0
+    duration_seconds = 2.0
+
+    time = np.arange(
+        int(sample_rate_hz * duration_seconds)
+    ) / sample_rate_hz
+
+    samples = np.sin(
+        2.0 * np.pi * frequency_hz * time
+    )
+
+    record = SignalRecord(
+        samples=samples,
+        sample_rate_hz=sample_rate_hz,
+    )
+
+    result = calculate_short_time_band_power(
+        record,
+        lower_frequency_hz=80.0,
+        upper_frequency_hz=120.0,
+        frame_length_samples=200,
+        hop_length_samples=100,
+    )
+
+    assert np.all(result.band_power > 0.0)
+
+    assert np.allclose(
+        result.band_power,
+        result.band_power[0],
+        rtol=1e-10,
+        atol=1e-12,
+    )
+
+def test_short_time_band_power_is_frequency_selective():
+    sample_rate_hz = 1000.0
+    duration_seconds = 2.0
+
+    time = np.arange(
+        int(sample_rate_hz * duration_seconds)
+    ) / sample_rate_hz
+
+    in_band_samples = np.sin(
+        2.0 * np.pi * 100.0 * time
+    )
+
+    out_of_band_samples = np.sin(
+        2.0 * np.pi * 300.0 * time
+    )
+
+    in_band_record = SignalRecord(
+        samples=in_band_samples,
+        sample_rate_hz=sample_rate_hz,
+    )
+
+    out_of_band_record = SignalRecord(
+        samples=out_of_band_samples,
+        sample_rate_hz=sample_rate_hz,
+    )
+
+    in_band_result = calculate_short_time_band_power(
+        in_band_record,
+        lower_frequency_hz=80.0,
+        upper_frequency_hz=120.0,
+        frame_length_samples=200,
+        hop_length_samples=100,
+    )
+
+    out_of_band_result = calculate_short_time_band_power(
+        out_of_band_record,
+        lower_frequency_hz=80.0,
+        upper_frequency_hz=120.0,
+        frame_length_samples=200,
+        hop_length_samples=100,
+    )
+
+    assert np.mean(
+        in_band_result.band_power
+    ) > 100.0 * np.mean(
+        out_of_band_result.band_power
+    )
+
+def test_short_time_band_power_tracks_frequency_event():
+    sample_rate_hz = 1000.0
+    duration_seconds = 4.0
+
+    time = np.arange(
+        int(sample_rate_hz * duration_seconds)
+    ) / sample_rate_hz
+
+    samples = 0.2 * np.sin(
+        2.0 * np.pi * 300.0 * time
+    )
+
+    event_mask = (
+        (time >= 2.0)
+        & (time < 2.5)
+    )
+
+    samples[event_mask] += np.sin(
+        2.0 * np.pi * 100.0 * time[event_mask]
+    )
+
+    record = SignalRecord(
+        samples=samples,
+        sample_rate_hz=sample_rate_hz,
+    )
+
+    result = calculate_short_time_band_power(
+        record,
+        lower_frequency_hz=80.0,
+        upper_frequency_hz=120.0,
+        frame_length_samples=200,
+        hop_length_samples=100,
+    )
+
+    before_event = result.times_seconds < 1.8
+
+    during_event = (
+        (result.times_seconds >= 2.1)
+        & (result.times_seconds <= 2.4)
+    )
+
+    mean_before = np.mean(
+        result.band_power[before_event]
+    )
+
+    mean_during = np.mean(
+        result.band_power[during_event]
+    )
+
+    assert mean_during > 10.0 * mean_before
