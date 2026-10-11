@@ -160,3 +160,93 @@ def detect_events_with_hysteresis(
         )
 
     return events
+
+def postprocess_events(
+    events: list[EventInterval],
+    frame_length_seconds: float,
+    minimum_event_duration_s: float = 0.0,
+    merge_gap_s: float = 0.0,
+) -> list[EventInterval]:
+    """Merge nearby events and reject events shorter than a configured duration."""
+
+    if frame_length_seconds <= 0:
+        raise ValueError(
+            "frame_length_seconds must be greater than zero."
+        )
+
+    if minimum_event_duration_s < 0:
+        raise ValueError(
+            "minimum_event_duration_s must be non-negative."
+        )
+
+    if merge_gap_s < 0:
+        raise ValueError(
+            "merge_gap_s must be non-negative."
+        )
+
+    if not events:
+        return []
+
+    merged: list[EventInterval] = []
+
+    current = events[0]
+
+    for next_event in events[1:]:
+        current_support_end = (
+            current.end_time_s
+            + frame_length_seconds / 2.0
+        )
+
+        next_support_start = (
+            next_event.start_time_s
+            - frame_length_seconds / 2.0
+        )
+
+        gap_s = (
+            next_support_start
+            - current_support_end
+        )
+
+        if gap_s <= merge_gap_s:
+            if next_event.peak_score > current.peak_score:
+                peak_index = next_event.peak_index
+                peak_time_s = next_event.peak_time_s
+                peak_score = next_event.peak_score
+            else:
+                peak_index = current.peak_index
+                peak_time_s = current.peak_time_s
+                peak_score = current.peak_score
+
+            current = EventInterval(
+                start_index=current.start_index,
+                end_index=next_event.end_index,
+                start_time_s=current.start_time_s,
+                end_time_s=next_event.end_time_s,
+                duration_s=(
+                    next_event.end_time_s
+                    - current.start_time_s
+                ),
+                peak_index=peak_index,
+                peak_time_s=peak_time_s,
+                peak_score=peak_score,
+            )
+
+        else:
+            merged.append(current)
+            current = next_event
+
+    merged.append(current)
+
+    filtered: list[EventInterval] = []
+
+    for event in merged:
+        support_duration_s = (
+            event.end_time_s
+            - event.start_time_s
+            + frame_length_seconds
+        )
+
+        if support_duration_s >= minimum_event_duration_s:
+            filtered.append(event)
+
+    return filtered
