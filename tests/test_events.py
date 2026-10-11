@@ -3,6 +3,7 @@ import numpy as np
 from noise_analyzer.dsp.events import (
     EventInterval,
     detect_events_with_hysteresis,
+    measure_rms_event,
     postprocess_events,
 )
 
@@ -453,3 +454,204 @@ def test_end_to_end_event_postprocessing_keeps_known_event():
     assert event.start_time_s <= 2.10
     assert event.end_time_s >= 2.40
     assert event.peak_score > 6.0
+
+def test_measure_rms_event_known_values():
+    event = EventInterval(
+        start_index=1,
+        end_index=3,
+        start_time_s=0.5,
+        end_time_s=1.5,
+        duration_s=1.0,
+        peak_index=2,
+        peak_time_s=1.0,
+        peak_score=8.0,
+    )
+
+    rms_values = np.array(
+        [
+            1.0,
+            2.0,
+            4.0,
+            3.0,
+            1.0,
+        ]
+    )
+
+    result = measure_rms_event(
+        event=event,
+        rms_values=rms_values,
+        baseline_rms=1.0,
+        frame_length_seconds=0.5,
+    )
+
+    assert np.isclose(
+        result.peak_rms,
+        4.0,
+    )
+
+    assert np.isclose(
+        result.mean_rms,
+        3.0,
+    )
+
+    assert np.isclose(
+        result.baseline_rms,
+        1.0,
+    )
+
+    assert np.isclose(
+        result.rms_ratio_to_baseline,
+        4.0,
+    )
+
+    assert np.isclose(
+        result.support_duration_s,
+        1.5,
+    )
+
+    assert np.isclose(
+        result.peak_score,
+        8.0,
+    )
+
+def test_measure_rms_event_rejects_nonpositive_baseline():
+    event = EventInterval(
+        start_index=0,
+        end_index=0,
+        start_time_s=0.0,
+        end_time_s=0.0,
+        duration_s=0.0,
+        peak_index=0,
+        peak_time_s=0.0,
+        peak_score=7.0,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="baseline_rms must be greater than zero",
+    ):
+        measure_rms_event(
+            event=event,
+            rms_values=np.array([1.0]),
+            baseline_rms=0.0,
+            frame_length_seconds=0.1,
+        )
+
+
+def test_measure_rms_event_rejects_event_outside_rms_track():
+    event = EventInterval(
+        start_index=1,
+        end_index=5,
+        start_time_s=0.1,
+        end_time_s=0.5,
+        duration_s=0.4,
+        peak_index=2,
+        peak_time_s=0.2,
+        peak_score=7.0,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="event end_index exceeds rms_values length",
+    ):
+        measure_rms_event(
+            event=event,
+            rms_values=np.array([1.0, 2.0, 3.0]),
+            baseline_rms=1.0,
+            frame_length_seconds=0.1,
+        )
+
+
+def test_measure_rms_event_rejects_nonfinite_rms_values():
+    event = EventInterval(
+        start_index=0,
+        end_index=1,
+        start_time_s=0.0,
+        end_time_s=0.1,
+        duration_s=0.1,
+        peak_index=1,
+        peak_time_s=0.1,
+        peak_score=7.0,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="rms_values must contain only finite values",
+    ):
+        measure_rms_event(
+            event=event,
+            rms_values=np.array([1.0, np.nan]),
+            baseline_rms=1.0,
+            frame_length_seconds=0.1,
+        )
+
+def test_end_to_end_event_measurement_reports_large_rms_increase():
+    sample_rate_hz = 1000.0
+    frequency_hz = 100.0
+    duration_seconds = 4.0
+
+    time = np.arange(
+        int(sample_rate_hz * duration_seconds)
+    ) / sample_rate_hz
+
+    samples = (
+        np.sin(
+            2.0 * np.pi * frequency_hz * time
+        )
+        + 0.02 * np.sin(
+            2.0 * np.pi * 17.0 * time
+        )
+    )
+
+    event_mask = (
+        (time >= 2.0)
+        & (time < 2.5)
+    )
+
+    samples[event_mask] *= 4.0
+
+    record = SignalRecord(
+        samples=samples,
+        sample_rate_hz=sample_rate_hz,
+    )
+
+    rms_result = calculate_short_time_rms(
+        record,
+        frame_length_samples=100,
+        hop_length_samples=50,
+    )
+
+    baseline = estimate_robust_baseline(
+        rms_result.rms
+    )
+
+    score_result = calculate_robust_deviation_scores(
+        rms_result.rms,
+        baseline,
+    )
+
+    raw_events = detect_events_with_hysteresis(
+        times_seconds=rms_result.times_seconds,
+        scores=score_result.scores,
+        start_threshold=6.0,
+        end_threshold=3.0,
+    )
+
+    final_events = postprocess_events(
+        raw_events,
+        frame_length_seconds=rms_result.frame_length_seconds,
+        minimum_event_duration_s=0.2,
+        merge_gap_s=0.1,
+    )
+
+    measurement = measure_rms_event(
+        event=final_events[0],
+        rms_values=rms_result.rms,
+        baseline_rms=baseline.location,
+        frame_length_seconds=rms_result.frame_length_seconds,
+    )
+
+    assert measurement.peak_rms > baseline.location
+    assert measurement.mean_rms > baseline.location
+    assert measurement.rms_ratio_to_baseline > 3.0
+    assert measurement.peak_score > 6.0

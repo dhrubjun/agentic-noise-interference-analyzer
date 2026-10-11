@@ -16,6 +16,21 @@ class EventInterval:
     peak_time_s: float
     peak_score: float
 
+@dataclass(frozen=True)
+class EventMeasurement:
+    """Numerical evidence describing one detected event."""
+
+    start_time_s: float
+    end_time_s: float
+    support_duration_s: float
+
+    peak_score: float
+    peak_rms: float
+    mean_rms: float
+
+    baseline_rms: float
+    rms_ratio_to_baseline: float
+
 
 def detect_events_with_hysteresis(
     times_seconds: np.ndarray,
@@ -250,3 +265,94 @@ def postprocess_events(
             filtered.append(event)
 
     return filtered
+
+def measure_rms_event(
+    event: EventInterval,
+    rms_values: np.ndarray,
+    baseline_rms: float,
+    frame_length_seconds: float,
+) -> EventMeasurement:
+    """Measure RMS-based evidence for one detected event."""
+
+    values = np.asarray(
+        rms_values,
+        dtype=float,
+    )
+
+    if values.ndim != 1:
+        raise ValueError(
+            "rms_values must be one-dimensional."
+        )
+
+    if values.size == 0:
+        raise ValueError(
+            "rms_values must not be empty."
+        )
+
+    if not np.all(np.isfinite(values)):
+        raise ValueError(
+            "rms_values must contain only finite values."
+        )
+
+    if not np.isfinite(baseline_rms):
+        raise ValueError(
+            "baseline_rms must be finite."
+        )
+
+    if baseline_rms <= 0:
+        raise ValueError(
+            "baseline_rms must be greater than zero."
+        )
+
+    if frame_length_seconds <= 0:
+        raise ValueError(
+            "frame_length_seconds must be greater than zero."
+        )
+
+    if event.start_index < 0:
+        raise ValueError(
+            "event start_index must be non-negative."
+        )
+
+    if event.end_index >= values.size:
+        raise ValueError(
+            "event end_index exceeds rms_values length."
+        )
+
+    if event.end_index < event.start_index:
+        raise ValueError(
+            "event end_index must not be smaller than start_index."
+        )
+
+    event_rms = values[
+        event.start_index:event.end_index + 1
+    ]
+
+    peak_rms = float(
+        np.max(event_rms)
+    )
+
+    mean_rms = float(
+        np.mean(event_rms)
+    )
+
+    support_duration_s = float(
+        event.end_time_s
+        - event.start_time_s
+        + frame_length_seconds
+    )
+
+    rms_ratio_to_baseline = float(
+        peak_rms / baseline_rms
+    )
+
+    return EventMeasurement(
+        start_time_s=event.start_time_s,
+        end_time_s=event.end_time_s,
+        support_duration_s=support_duration_s,
+        peak_score=event.peak_score,
+        peak_rms=peak_rms,
+        mean_rms=mean_rms,
+        baseline_rms=float(baseline_rms),
+        rms_ratio_to_baseline=rms_ratio_to_baseline,
+    )
